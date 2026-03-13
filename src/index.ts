@@ -1,1 +1,3 @@
-console.log("Ollama Assistant is alive");
+const { startServer } = require("./server");
+
+startServer();
