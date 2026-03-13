@@ -4,8 +4,98 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Ollama Assistant</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f7f4ec;
+        --panel: #fffaf0;
+        --ink: #1e1a16;
+        --muted: #6d6258;
+        --line: #d9cbb8;
+        --accent: #a64b2a;
+        --accent-soft: #f2d9cb;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: Georgia, "Times New Roman", serif;
+        background:
+          radial-gradient(circle at top, #fff7df 0, transparent 32%),
+          linear-gradient(135deg, #f0eadb 0%, var(--bg) 55%, #efe3d0 100%);
+        color: var(--ink);
+      }
+
+      main {
+        width: min(760px, calc(100% - 32px));
+        margin: 48px auto;
+        padding: 28px;
+        border: 1px solid var(--line);
+        border-radius: 24px;
+        background: color-mix(in srgb, var(--panel) 92%, white);
+        box-shadow: 0 20px 60px rgba(77, 55, 32, 0.12);
+      }
+
+      h1 {
+        margin: 0 0 8px;
+        font-size: clamp(2rem, 5vw, 3.4rem);
+        line-height: 0.95;
+      }
+
+      p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 1.05rem;
+      }
+
+      .status {
+        margin-top: 20px;
+        display: inline-block;
+        padding: 8px 12px;
+        border-radius: 999px;
+        background: var(--accent-soft);
+        color: var(--accent);
+        font-size: 0.95rem;
+      }
+
+      ul {
+        list-style: none;
+        padding: 0;
+        margin: 24px 0 0;
+        display: grid;
+        gap: 14px;
+      }
+
+      li {
+        display: grid;
+        gap: 6px;
+        padding: 16px 18px;
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.72);
+      }
+
+      strong {
+        font-size: 1.1rem;
+      }
+
+      li span {
+        color: var(--muted);
+      }
+    </style>
   </head>
   <body>
-    Hello, two  world.
+    <main>
+      <p>Local Ollama</p>
+      <h1>Available models</h1>
+      <p>This page reads the model list from your machine through the local Node server.</p>
+      <div class="status" data-status>Waiting to load models...</div>
+      <ul data-model-list></ul>
+    </main>
+    <script src="/app.js"></script>
   </body>
 </html>
