@@ -10,6 +10,9 @@ type OllamaTagsResponse = {
 type GenerateRequest = {
   model: string;
   prompt: string;
+  options?: {
+    num_gpu: number;
+  };
   stream: boolean;
 };
 
@@ -19,6 +22,7 @@ type GenerateResponse = {
 
 const DEFAULT_OLLAMA_URL = "http://127.0.0.1:11434";
 const DEFAULT_TIMEOUT_MS = 2500;
+const DEFAULT_NUM_GPU = 999;
 
 async function fetchModels() {
   const response = await fetchWithTimeout(`${getBaseUrl()}/api/tags`, DEFAULT_TIMEOUT_MS);
@@ -36,14 +40,19 @@ function getBaseUrl() {
 }
 
 async function generateMessage(model: string, prompt: string) {
+  const requestBody = {
+    model,
+    prompt,
+    options: {
+      num_gpu: DEFAULT_NUM_GPU,
+    },
+    stream: false,
+  } satisfies GenerateRequest;
+
   const response = await fetchWithTimeout(`${getBaseUrl()}/api/generate`, DEFAULT_TIMEOUT_MS * 24, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model,
-      prompt,
-      stream: false,
-    } satisfies GenerateRequest),
+    body: JSON.stringify(requestBody),
   });
 
   if (!response.ok) {
