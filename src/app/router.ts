@@ -1,6 +1,10 @@
 const { refreshEnv } = require("../config/env");
 const {
   handleConfigRequest,
+  handleInstructionPresetCreateRequest,
+  handleInstructionPresetDeleteRequest,
+  handleInstructionPresetListRequest,
+  handleInstructionPresetUpdateRequest,
   handleMessageRequest,
   handleModelInfoRequest,
   handleModelsRequest,
@@ -14,6 +18,7 @@ async function handleRequest(
 ) {
   refreshEnv();
   const url = new URL(request.url ?? "/", "http://127.0.0.1").pathname;
+  const presetMatch = url.match(/^\/api\/instruction-presets\/(\d+)$/);
 
   if (url === "/api/models") {
     await handleModelsRequest(response);
@@ -22,6 +27,26 @@ async function handleRequest(
 
   if (url === "/api/config") {
     handleConfigRequest(response);
+    return;
+  }
+
+  if (url === "/api/instruction-presets" && request.method === "GET") {
+    handleInstructionPresetListRequest(response);
+    return;
+  }
+
+  if (url === "/api/instruction-presets" && request.method === "POST") {
+    await handleInstructionPresetCreateRequest(request, response);
+    return;
+  }
+
+  if (presetMatch && request.method === "PUT") {
+    await handleInstructionPresetUpdateRequest(request, response, presetMatch[1]);
+    return;
+  }
+
+  if (presetMatch && request.method === "DELETE") {
+    handleInstructionPresetDeleteRequest(response, presetMatch[1]);
     return;
   }
 

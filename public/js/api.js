@@ -3,7 +3,9 @@ async function requestJson(url, options) {
   const data = await response.json();
 
   if (!response.ok) {
-    throw new Error(data.error ?? "Request failed");
+    const error = new Error(data.error ?? "Request failed");
+    error.status = response.status;
+    throw error;
   }
 
   return data;
@@ -26,6 +28,37 @@ export async function loadModelInfo(model) {
 
 export async function loadConfig() {
   return requestJson("/api/config");
+}
+
+export async function loadInstructionPresets() {
+  const data = await requestJson("/api/instruction-presets");
+  return Array.isArray(data.presets) ? data.presets : [];
+}
+
+export async function saveInstructionPreset(title, instructionText) {
+  const data = await requestJson("/api/instruction-presets", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ title, instructionText }),
+  });
+
+  return data.preset ?? null;
+}
+
+export async function updateInstructionPreset(id, instructionText) {
+  const data = await requestJson(`/api/instruction-presets/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ instructionText }),
+  });
+
+  return data.preset ?? null;
+}
+
+export async function deleteInstructionPreset(id) {
+  return requestJson(`/api/instruction-presets/${id}`, {
+    method: "DELETE",
+  });
 }
 
 export async function sendMessage(model, prompt, instruction) {
