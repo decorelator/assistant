@@ -14,6 +14,8 @@ import {
   renderMessage,
   renderModelInfo,
   renderModelOptions,
+  setCurrentInstructionName,
+  setCurrentModelName,
   setBusy,
   setDefaults,
   setStatus,
@@ -27,6 +29,7 @@ function updateBusyState(isBusy) {
   setBusy(isBusy, availableModels.length);
 }
 const instructionController = createInstructionController({
+  onInstructionNameChange: setCurrentInstructionName,
   setBusy: updateBusyState,
   setStatus,
 });
@@ -95,6 +98,7 @@ function handleClearClick() {
 
 function handleModelChange() {
   const model = getSelectedModel();
+  setCurrentModelName(model);
   renderModelInfo(model ? `Current model: ${model}` : "Select a model and tap Model info.");
 }
 
@@ -107,11 +111,16 @@ async function initializeModels() {
     setStatus(`${availableModels.length} model${availableModels.length === 1 ? "" : "s"} available`);
 
     if (availableModels.length > 0) {
-      renderModelInfo(`Current model: ${availableModels[0].name ?? "Unnamed model"}`);
+      const initialModelName = availableModels[0].name ?? "Unnamed model";
+      setCurrentModelName(initialModelName);
+      renderModelInfo(`Current model: ${initialModelName}`);
+    } else {
+      setCurrentModelName("Not selected");
     }
   } catch (error) {
     availableModels = [];
     renderModelOptions([]);
+    setCurrentModelName("Not available");
     renderModelInfo("Could not load model info.");
     setStatus(error instanceof Error ? error.message : "Could not load models");
   } finally {

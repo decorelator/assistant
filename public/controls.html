@@ -46,7 +46,13 @@
     data-tab-panel
     data-tab-name="msg"
   >
-    <label class="label" for="prompt">Message</label>
+    <div class="panel-heading">
+      <label class="label" for="prompt">Message</label>
+      <div class="message-meta" data-message-meta>
+        <span data-current-instruction-name>Instruction: .env fallback</span>
+        <span data-current-model-name>Model: Loading...</span>
+      </div>
+    </div>
     <textarea
       id="prompt"
       name="prompt"

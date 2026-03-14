@@ -14,6 +14,8 @@ const deleteDialogConfirmButton = document.querySelector("[data-delete-dialog-co
 const deleteDialogCopy = document.querySelector("[data-delete-dialog-copy]");
 const sendButton = document.querySelector("[data-send-button]");
 const infoButton = document.querySelector("[data-info-button]");
+const currentInstructionName = document.querySelector("[data-current-instruction-name]");
+const currentModelName = document.querySelector("[data-current-model-name]");
 const emptyState = document.querySelector("[data-empty-state]");
 const presetTitleError = document.querySelector("[data-preset-title-error]");
 const presetTitleInput = document.querySelector("[data-preset-title-input]");
@@ -312,6 +314,18 @@ export function setInstructionPresetActions(canModifySelectedPreset) {
 export function setInstructionSource(text) {
   if (instructionSource) {
     instructionSource.textContent = text;
+  }
+}
+
+export function setCurrentInstructionName(name) {
+  if (currentInstructionName) {
+    currentInstructionName.textContent = `Instruction: ${name || ".env fallback"}`;
+  }
+}
+
+export function setCurrentModelName(name) {
+  if (currentModelName) {
+    currentModelName.textContent = `Model: ${name || "Not selected"}`;
   }
 }
 

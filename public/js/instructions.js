@@ -33,7 +33,7 @@ function isValidationError(error) {
   return Boolean(error && typeof error === "object" && "status" in error && error.status === 409);
 }
 
-export function createInstructionController({ setBusy, setStatus }) {
+export function createInstructionController({ onInstructionNameChange, setBusy, setStatus }) {
   let fallbackInstruction = "";
   let instructionPresets = [];
   let selectedInstructionPresetId = null;
@@ -49,10 +49,12 @@ export function createInstructionController({ setBusy, setStatus }) {
 
     if (selectedPreset) {
       setInstructionSource(`Selected preset: ${selectedPreset.title}`);
+      onInstructionNameChange?.(selectedPreset.title);
       return;
     }
 
     setInstructionSource("Using fallback instruction from .env.");
+    onInstructionNameChange?.(".env fallback");
   }
 
   function loadFallbackInstruction() {

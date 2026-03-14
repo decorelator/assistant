@@ -69,6 +69,20 @@ main {
   text-transform: uppercase;
 }
 
+.panel-heading {
+  display: grid;
+  gap: 4px;
+}
+
+.message-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
 select,
 input,
 textarea,
