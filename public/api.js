@@ -1,0 +1,39 @@
+async function requestJson(url, options) {
+  const response = await fetch(url, options);
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.error ?? "Request failed");
+  }
+
+  return data;
+}
+
+export async function loadModels() {
+  const data = await requestJson("/api/models");
+  return Array.isArray(data.models) ? data.models : [];
+}
+
+export async function loadModelInfo(model) {
+  const data = await requestJson("/api/model", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ model }),
+  });
+
+  return typeof data.details === "string" ? data.details : "No model info available.";
+}
+
+export async function loadConfig() {
+  return requestJson("/api/config");
+}
+
+export async function sendMessage(model, prompt, instruction) {
+  const data = await requestJson("/api/message", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ model, prompt, instruction }),
+  });
+
+  return typeof data.response === "string" ? data.response : "";
+}

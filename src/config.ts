@@ -112,4 +112,8 @@ function getClientConfig() {
   };
 }
 
-module.exports = { getClientConfig, refreshEnv };
+function getDefaultInstruction() {
+  return process.env.DEFAULT_INSTRUCTION ?? "";
+}
+
+module.exports = { getClientConfig, getDefaultInstruction, refreshEnv };
