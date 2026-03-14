@@ -1,12 +1,12 @@
-const { refreshEnv } = require("./config");
+const { refreshEnv } = require("../config/env");
 const {
   handleConfigRequest,
   handleMessageRequest,
   handleModelInfoRequest,
   handleModelsRequest,
-} = require("./handlers");
-const { sendNotFound } = require("./http");
-const { servePublicAsset } = require("./static");
+} = require("../api/handlers");
+const { sendNotFound } = require("../lib/http");
+const { servePublicAsset } = require("../static/serve-public");
 
 async function handleRequest(
   request: import("node:http").IncomingMessage,

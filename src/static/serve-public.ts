@@ -1,6 +1,6 @@
 const { existsSync, readFileSync, statSync } = require("node:fs");
 const { extname, relative, resolve } = require("node:path");
-const { sendText } = require("./http");
+const { sendText } = require("../lib/http");
 
 const publicRoot = resolve(process.cwd(), "public");
 

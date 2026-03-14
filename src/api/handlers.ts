@@ -1,6 +1,6 @@
-const { getClientConfig, getDefaultInstruction } = require("./config");
-const { readJsonBody, sendJson } = require("./http");
-const { fetchModels, fetchModelInfo, generateMessage } = require("./ollama");
+const { getClientConfig, getDefaultInstruction } = require("../config/env");
+const { readJsonBody, sendJson } = require("../lib/http");
+const { fetchModels, fetchModelInfo, generateMessage } = require("../services/ollama");
 
 function readTrimmedString(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
