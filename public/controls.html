@@ -1,0 +1,153 @@
+<form class="control-panel" data-chat-form>
+  <div class="tabs" role="tablist" aria-label="Assistant controls">
+    <button
+      type="button"
+      class="tab-button is-active"
+      role="tab"
+      aria-selected="true"
+      aria-controls="panel-msg"
+      id="tab-msg"
+      data-tab-button
+      data-tab-target="msg"
+    >
+      Msg
+    </button>
+    <button
+      type="button"
+      class="tab-button"
+      role="tab"
+      aria-selected="false"
+      aria-controls="panel-instruct"
+      id="tab-instruct"
+      data-tab-button
+      data-tab-target="instruct"
+    >
+      Instruct
+    </button>
+    <button
+      type="button"
+      class="tab-button"
+      role="tab"
+      aria-selected="false"
+      aria-controls="panel-info"
+      id="tab-info"
+      data-tab-button
+      data-tab-target="info"
+    >
+      Info
+    </button>
+  </div>
+
+  <section
+    class="tab-panel is-active"
+    role="tabpanel"
+    aria-labelledby="tab-msg"
+    id="panel-msg"
+    data-tab-panel
+    data-tab-name="msg"
+  >
+    <label class="label" for="prompt">Message</label>
+    <textarea
+      id="prompt"
+      name="prompt"
+      data-prompt
+      placeholder="Ask something..."
+    ></textarea>
+    <div class="actions">
+      <button type="button" class="button-secondary" data-clear-button>Clear</button>
+      <button type="submit" data-send-button>Send</button>
+    </div>
+  </section>
+
+  <section
+    class="tab-panel"
+    role="tabpanel"
+    aria-labelledby="tab-instruct"
+    id="panel-instruct"
+    hidden
+    data-tab-panel
+    data-tab-name="instruct"
+  >
+    <div class="field">
+      <label class="label" for="instruction-preset-select">Saved presets</label>
+      <select id="instruction-preset-select" data-instruction-preset-select disabled>
+        <option value="">No saved presets</option>
+      </select>
+    </div>
+    <div class="instruction-source" data-instruction-source>
+      Using fallback instruction from .env.
+    </div>
+    <label class="label" for="instruction">Instruction</label>
+    <textarea
+      id="instruction"
+      name="instruction"
+      class="instruction-input"
+      data-instruction
+      placeholder="You are a concise assistant..."
+    ></textarea>
+    <div class="actions">
+      <button type="button" class="button-secondary" data-save-preset-button>Save</button>
+      <button type="button" class="button-secondary" data-update-preset-button disabled>
+        Update
+      </button>
+      <button type="button" class="button-danger" data-delete-preset-button disabled>
+        Delete
+      </button>
+    </div>
+  </section>
+
+  <section
+    class="tab-panel"
+    role="tabpanel"
+    aria-labelledby="tab-info"
+    id="panel-info"
+    hidden
+    data-tab-panel
+    data-tab-name="info"
+  >
+    <div class="field">
+      <label class="label" for="model-select">Model</label>
+      <select id="model-select" data-model-select disabled>
+        <option>Loading models...</option>
+      </select>
+    </div>
+    <div class="field">
+      <span class="label">Status</span>
+      <div class="status" data-status>Loading...</div>
+    </div>
+    <div class="field">
+      <button type="button" class="button-secondary" data-info-button>Load model info</button>
+    </div>
+    <div class="field">
+      <span class="label">Model info</span>
+      <div class="info-panel" data-model-info>Select a model and load info.</div>
+    </div>
+  </section>
+</form>
+
+<dialog class="dialog" data-save-preset-dialog>
+  <form class="dialog-form" data-save-preset-form>
+    <h2 class="dialog-title">Save instruction preset</h2>
+    <p class="dialog-copy">Enter a short unique title for this preset.</p>
+    <label class="label" for="preset-title">Title</label>
+    <input id="preset-title" name="title" type="text" maxlength="80" data-preset-title-input />
+    <p class="form-error" data-preset-title-error hidden></p>
+    <div class="actions">
+      <button type="button" class="button-secondary" data-save-dialog-cancel>Cancel</button>
+      <button type="submit">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog class="dialog" data-delete-preset-dialog>
+  <form class="dialog-form" method="dialog">
+    <h2 class="dialog-title">Delete instruction preset</h2>
+    <p class="dialog-copy" data-delete-dialog-copy>
+      This preset will be deleted from the database.
+    </p>
+    <div class="actions">
+      <button type="button" class="button-secondary" data-delete-dialog-cancel>Cancel</button>
+      <button type="button" class="button-danger" data-delete-dialog-confirm>Delete</button>
+    </div>
+  </form>
+</dialog>
