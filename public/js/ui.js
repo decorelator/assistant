@@ -14,6 +14,7 @@ const deleteDialogConfirmButton = document.querySelector("[data-delete-dialog-co
 const deleteDialogCopy = document.querySelector("[data-delete-dialog-copy]");
 const sendButton = document.querySelector("[data-send-button]");
 const infoButton = document.querySelector("[data-info-button]");
+const refreshModelsButton = document.querySelector("[data-refresh-models-button]");
 const currentInstructionName = document.querySelector("[data-current-instruction-name]");
 const currentModelName = document.querySelector("[data-current-model-name]");
 const emptyState = document.querySelector("[data-empty-state]");
@@ -109,6 +110,10 @@ export function bindDeleteDialogConfirm(handler) {
 
 export function bindInfoButton(handler) {
   infoButton?.addEventListener("click", handler);
+}
+
+export function bindRefreshModelsButton(handler) {
+  refreshModelsButton?.addEventListener("click", handler);
 }
 
 export function bindModelChange(handler) {
@@ -284,6 +289,7 @@ export function setBusy(isBusy, availableModelCount) {
   clearButton && (clearButton.disabled = isBusy);
   sendButton && (sendButton.disabled = isBusy);
   infoButton && (infoButton.disabled = isBusy);
+  refreshModelsButton && (refreshModelsButton.disabled = isBusy);
   promptInput && (promptInput.disabled = isBusy);
   instructionInput && (instructionInput.disabled = isBusy);
 

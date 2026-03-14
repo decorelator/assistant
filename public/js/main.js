@@ -6,6 +6,7 @@ import {
   bindClearButton,
   bindInfoButton,
   bindModelChange,
+  bindRefreshModelsButton,
   bindTabs,
   clearMessages,
   focusPrompt,
@@ -142,6 +143,7 @@ bindChatForm(handleSubmit);
 bindClearButton(handleClearClick);
 bindInfoButton(handleInfoClick);
 bindModelChange(handleModelChange);
+bindRefreshModelsButton(initializeModels);
 bindTabs();
 instructionController.bindEvents();
 

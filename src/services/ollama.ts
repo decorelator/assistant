@@ -11,6 +11,7 @@ type GenerateRequest = {
   model: string;
   prompt: string;
   system?: string;
+  keep_alive?: string;
   options?: {
     num_gpu: number;
   };
@@ -35,6 +36,7 @@ type ShowResponse = {
 const DEFAULT_OLLAMA_URL = "http://127.0.0.1:11434";
 const DEFAULT_TIMEOUT_MS = 2500;
 const DEFAULT_NUM_GPU = 32;
+const DEFAULT_KEEP_ALIVE = "10m";
 const GENERATE_TIMEOUT_MS = 180000;
 const MODEL_INFO_TIMEOUT_MS = 20000;
 
@@ -56,6 +58,7 @@ async function generateMessage(model: string, prompt: string, instruction?: stri
     model,
     prompt,
     system: instruction ?? "",
+    keep_alive: DEFAULT_KEEP_ALIVE,
     options: {
       num_gpu: DEFAULT_NUM_GPU,
     },
