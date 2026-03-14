@@ -1,7 +1,8 @@
 const { getDefaultInstruction } = require("../config/env");
+const { touchInstructionPreset } = require("../db/instruction-presets");
 const { readJsonBody, sendJson } = require("../lib/http");
 const { fetchModels, fetchModelInfo, generateMessage } = require("../services/ollama");
-const { readTrimmedString } = require("./request-utils");
+const { readPositiveInteger, readTrimmedString } = require("./request-utils");
 
 async function handleModelsRequest(response: import("node:http").ServerResponse) {
   try {
@@ -21,6 +22,10 @@ async function handleMessageRequest(
     const model = readTrimmedString(body.model);
     const prompt = readTrimmedString(body.prompt);
     const instruction = readTrimmedString(body.instruction);
+    const presetId =
+      typeof body.presetId === "number" || typeof body.presetId === "string"
+        ? readPositiveInteger(String(body.presetId))
+        : null;
     const effectiveInstruction = instruction || getDefaultInstruction().trim();
 
     if (!model || !prompt) {
@@ -29,6 +34,11 @@ async function handleMessageRequest(
     }
 
     const reply = await generateMessage(model, prompt, effectiveInstruction);
+
+    if (presetId) {
+      touchInstructionPreset(presetId);
+    }
+
     sendJson(response, 200, { response: reply });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Could not send message.";

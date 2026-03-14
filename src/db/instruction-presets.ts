@@ -98,6 +98,26 @@ function updateInstructionPreset(id: number, instructionText: string) {
   return getInstructionPresetById(id);
 }
 
+function touchInstructionPreset(id: number) {
+  const database = getDatabase();
+  const touchedAt = new Date().toISOString();
+  const result = database
+    .prepare(
+      `
+        UPDATE instruction_presets
+        SET created_at = ?
+        WHERE id = ?
+      `,
+    )
+    .run(touchedAt, id);
+
+  if (result.changes === 0) {
+    return null;
+  }
+
+  return getInstructionPresetById(id);
+}
+
 function deleteInstructionPreset(id: number) {
   const database = getDatabase();
   const result = database
@@ -128,5 +148,6 @@ module.exports = {
   initializeInstructionPresetTable,
   isUniqueTitleConstraintError,
   listInstructionPresets,
+  touchInstructionPreset,
   updateInstructionPreset,
 };

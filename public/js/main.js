@@ -40,6 +40,7 @@ async function handleSubmit(event) {
 
   const model = getSelectedModel();
   const instruction = instructionController.getInstructionValue();
+  const selectedPresetId = instructionController.getSelectedPresetId();
   const prompt = promptHistory.getPromptForSubmit();
 
   if (!model || !prompt) {
@@ -56,7 +57,10 @@ async function handleSubmit(event) {
   setStatus(`Sending to ${model}...`);
 
   try {
-    const reply = await sendMessage(model, prompt, instruction);
+    const reply = await sendMessage(model, prompt, instruction, selectedPresetId);
+    if (selectedPresetId) {
+      instructionController.markPresetAsUsed(selectedPresetId);
+    }
     renderMessage("assistant", reply || "No response from model.");
     setStatus(`Ready with ${model}`);
   } catch (error) {
@@ -146,6 +150,7 @@ bindModelChange(handleModelChange);
 bindRefreshModelsButton(initializeModels);
 bindTabs();
 instructionController.bindEvents();
+promptHistory.bindEvents();
 
 updateBusyState(true);
 void Promise.all([initializeModels(), initializeInstructions()]);

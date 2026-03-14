@@ -7,6 +7,7 @@ const instructionInput = document.querySelector("[data-instruction]");
 const instructionPresetSelect = document.querySelector("[data-instruction-preset-select]");
 const instructionSource = document.querySelector("[data-instruction-source]");
 const promptInput = document.querySelector("[data-prompt]");
+const recentPromptsSelect = document.querySelector("[data-recent-prompts-select]");
 const clearButton = document.querySelector("[data-clear-button]");
 const deleteDialog = document.querySelector("[data-delete-preset-dialog]");
 const deleteDialogCancelButton = document.querySelector("[data-delete-dialog-cancel]");
@@ -98,6 +99,10 @@ export function bindChatForm(handler) {
 
 export function bindClearButton(handler) {
   clearButton?.addEventListener("click", handler);
+}
+
+export function bindRecentPromptChange(handler) {
+  recentPromptsSelect?.addEventListener("change", handler);
 }
 
 export function bindDeleteDialogCancel(handler) {
@@ -192,6 +197,11 @@ export function getSelectedInstructionPresetId() {
   return value ? Number.parseInt(value, 10) : null;
 }
 
+export function getSelectedRecentPromptIndex() {
+  const value = recentPromptsSelect?.value?.trim() ?? "";
+  return value ? Number.parseInt(value, 10) : null;
+}
+
 export function renderMessage(role, text) {
   if (!messageList) {
     return;
@@ -201,10 +211,44 @@ export function renderMessage(role, text) {
 
   const item = document.createElement("li");
   item.className = `message ${role === "user" ? "message-user" : ""}`.trim();
-  item.innerHTML = `
-    <span class="message-role">${role}</span>
-    <span class="message-text">${escapeHtml(text)}</span>
-  `;
+  const roleElement = document.createElement("span");
+  roleElement.className = "message-role";
+  roleElement.textContent = role;
+
+  const textElement = document.createElement("span");
+  textElement.className = "message-text";
+  textElement.textContent = text;
+
+  item.appendChild(roleElement);
+  item.appendChild(textElement);
+
+  if (role !== "user") {
+    const actionsElement = document.createElement("div");
+    actionsElement.className = "message-actions";
+
+    const copyButton = document.createElement("button");
+    copyButton.type = "button";
+    copyButton.className = "button-secondary message-copy-button";
+    copyButton.textContent = "Copy";
+    copyButton.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(text);
+        copyButton.textContent = "Copied";
+        setTimeout(() => {
+          copyButton.textContent = "Copy";
+        }, 1200);
+      } catch {
+        copyButton.textContent = "Failed";
+        setTimeout(() => {
+          copyButton.textContent = "Copy";
+        }, 1200);
+      }
+    });
+
+    actionsElement.appendChild(copyButton);
+    item.appendChild(actionsElement);
+  }
+
   messageList.appendChild(item);
   scrollPageToBottom();
 }
@@ -253,6 +297,44 @@ export function renderModelOptions(models) {
   modelSelect.disabled = false;
 }
 
+export function renderRecentPromptOptions(prompts) {
+  if (!recentPromptsSelect) {
+    return;
+  }
+
+  recentPromptsSelect.innerHTML = "";
+
+  if (prompts.length === 0) {
+    const option = document.createElement("option");
+    option.value = "";
+    option.textContent = "No recent messages";
+    recentPromptsSelect.appendChild(option);
+    recentPromptsSelect.disabled = true;
+    return;
+  }
+
+  const placeholderOption = document.createElement("option");
+  placeholderOption.value = "";
+  placeholderOption.textContent = "Choose a recent message";
+  recentPromptsSelect.appendChild(placeholderOption);
+
+  for (const prompt of prompts) {
+    const option = document.createElement("option");
+    option.value = String(prompt.index);
+    option.textContent = prompt.label;
+    recentPromptsSelect.appendChild(option);
+  }
+
+  recentPromptsSelect.value = "";
+  recentPromptsSelect.disabled = false;
+}
+
+export function resetRecentPromptSelection() {
+  if (recentPromptsSelect) {
+    recentPromptsSelect.value = "";
+  }
+}
+
 export function renderInstructionPresetOptions(presets, selectedPresetId) {
   if (!instructionPresetSelect) {
     return;
@@ -290,6 +372,7 @@ export function setBusy(isBusy, availableModelCount) {
   sendButton && (sendButton.disabled = isBusy);
   infoButton && (infoButton.disabled = isBusy);
   refreshModelsButton && (refreshModelsButton.disabled = isBusy);
+  recentPromptsSelect && (recentPromptsSelect.disabled = isBusy || recentPromptsSelect.options.length <= 1);
   promptInput && (promptInput.disabled = isBusy);
   instructionInput && (instructionInput.disabled = isBusy);
 

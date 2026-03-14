@@ -231,6 +231,25 @@ export function createInstructionController({ onInstructionNameChange, setBusy, 
   return {
     bindEvents,
     getInstructionValue,
+    getSelectedPresetId: () => selectedInstructionPresetId,
     initialize,
+    markPresetAsUsed(presetId) {
+      const selectedPreset = instructionPresets.find((preset) => preset.id === presetId);
+
+      if (!selectedPreset) {
+        return;
+      }
+
+      const updatedPreset = {
+        ...selectedPreset,
+        createdAt: new Date().toISOString(),
+      };
+
+      instructionPresets = [
+        updatedPreset,
+        ...instructionPresets.filter((preset) => preset.id !== presetId),
+      ];
+      loadInstructionPresetById(updatedPreset.id);
+    },
   };
 }

@@ -61,11 +61,11 @@ export async function deleteInstructionPreset(id) {
   });
 }
 
-export async function sendMessage(model, prompt, instruction) {
+export async function sendMessage(model, prompt, instruction, presetId = null) {
   const data = await requestJson("/api/message", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ model, prompt, instruction }),
+    body: JSON.stringify({ model, prompt, instruction, presetId }),
   });
 
   return typeof data.response === "string" ? data.response : "";

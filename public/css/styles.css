@@ -158,6 +158,17 @@ input {
   word-break: break-word;
 }
 
+.message-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 10px;
+}
+
+.message-copy-button {
+  width: auto;
+  min-width: 5.5rem;
+}
+
 .message-user {
   background: var(--accent-soft);
   border-color: transparent;
