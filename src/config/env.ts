@@ -116,4 +116,8 @@ function getDefaultInstruction() {
   return process.env.DEFAULT_INSTRUCTION ?? "";
 }
 
-module.exports = { getClientConfig, getDefaultInstruction, refreshEnv };
+function getSqlitePath() {
+  return process.env.SQLITE_PATH?.trim() || "data/assistant.sqlite";
+}
+
+module.exports = { getClientConfig, getDefaultInstruction, getSqlitePath, refreshEnv };
