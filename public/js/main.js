@@ -1,6 +1,7 @@
 import { loadModelInfo, loadModels, sendMessage } from "./api.js";
 import { createInstructionController } from "./instructions.js";
 import { createPromptHistoryController } from "./prompt-history.js";
+import { createTranslatorController } from "./translator/translator-controller.js";
 import {
   bindChatForm,
   bindClearButton,
@@ -25,12 +26,15 @@ import {
 
 let availableModels = [];
 const promptHistory = createPromptHistoryController();
+const translatorController = createTranslatorController({ setStatus });
 
 function updateBusyState(isBusy) {
   setBusy(isBusy, availableModels.length);
+  translatorController.setBusy(isBusy);
 }
 const instructionController = createInstructionController({
   onInstructionNameChange: setCurrentInstructionName,
+  onPresetsChange: translatorController.updateSystemMessages,
   setBusy: updateBusyState,
   setStatus,
 });
@@ -113,6 +117,7 @@ async function initializeModels() {
   try {
     availableModels = await loadModels();
     renderModelOptions(availableModels);
+    translatorController.updateAvailableModels(availableModels);
     setStatus(`${availableModels.length} model${availableModels.length === 1 ? "" : "s"} available`);
 
     if (availableModels.length > 0) {
@@ -125,6 +130,7 @@ async function initializeModels() {
   } catch (error) {
     availableModels = [];
     renderModelOptions([]);
+    translatorController.updateAvailableModels([]);
     setCurrentModelName("Not available");
     renderModelInfo("Could not load model info.");
     setStatus(error instanceof Error ? error.message : "Could not load models");
@@ -151,6 +157,7 @@ bindRefreshModelsButton(initializeModels);
 bindTabs();
 instructionController.bindEvents();
 promptHistory.bindEvents();
+translatorController.bindEvents();
 
 updateBusyState(true);
-void Promise.all([initializeModels(), initializeInstructions()]);
+void Promise.all([initializeModels(), initializeInstructions(), translatorController.initialize()]);

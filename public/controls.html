@@ -36,6 +36,18 @@
     >
       Info
     </button>
+    <button
+      type="button"
+      class="tab-button"
+      role="tab"
+      aria-selected="false"
+      aria-controls="panel-translator"
+      id="tab-translator"
+      data-tab-button
+      data-tab-target="translator"
+    >
+      Translator
+    </button>
   </div>
 
   <section
@@ -139,6 +151,18 @@
       <span class="label">Model info</span>
       <div class="info-panel" data-model-info>Select a model and load info.</div>
     </div>
+  </section>
+
+  <section
+    class="tab-panel"
+    role="tabpanel"
+    aria-labelledby="tab-translator"
+    id="panel-translator"
+    hidden
+    data-tab-panel
+    data-tab-name="translator"
+  >
+    <div data-translator-tab-root></div>
   </section>
 </form>
 

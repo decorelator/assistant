@@ -33,13 +33,22 @@ function isValidationError(error) {
   return Boolean(error && typeof error === "object" && "status" in error && error.status === 409);
 }
 
-export function createInstructionController({ onInstructionNameChange, setBusy, setStatus }) {
+export function createInstructionController({
+  onInstructionNameChange,
+  onPresetsChange,
+  setBusy,
+  setStatus,
+}) {
   let fallbackInstruction = "";
   let instructionPresets = [];
   let selectedInstructionPresetId = null;
 
   function getSelectedInstructionPreset() {
     return instructionPresets.find((preset) => preset.id === selectedInstructionPresetId) ?? null;
+  }
+
+  function notifyPresetsChange() {
+    onPresetsChange?.(instructionPresets);
   }
 
   function syncInstructionPresetUi() {
@@ -78,6 +87,7 @@ export function createInstructionController({ onInstructionNameChange, setBusy, 
 
   function applyInstructionPresets(presets, presetIdToSelect = null) {
     instructionPresets = Array.isArray(presets) ? presets : [];
+    notifyPresetsChange();
 
     if (presetIdToSelect) {
       const selectedPreset = instructionPresets.find((preset) => preset.id === presetIdToSelect);
@@ -160,6 +170,7 @@ export function createInstructionController({ onInstructionNameChange, setBusy, 
       }
 
       instructionPresets = instructionPresets.map((item) => (item.id === preset.id ? preset : item));
+      notifyPresetsChange();
       loadInstructionPresetById(preset.id);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Could not update preset");
@@ -249,6 +260,7 @@ export function createInstructionController({ onInstructionNameChange, setBusy, 
         updatedPreset,
         ...instructionPresets.filter((preset) => preset.id !== presetId),
       ];
+      notifyPresetsChange();
       loadInstructionPresetById(updatedPreset.id);
     },
   };
