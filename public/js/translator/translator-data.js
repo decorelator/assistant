@@ -1,21 +1,4 @@
-import "./translator-types.js";
-
-function formatBytes(bytes) {
-  if (!Number.isFinite(bytes) || bytes <= 0) {
-    return "Unknown size";
-  }
-
-  const units = ["B", "KB", "MB", "GB", "TB"];
-  let value = bytes;
-  let unitIndex = 0;
-
-  while (value >= 1024 && unitIndex < units.length - 1) {
-    value /= 1024;
-    unitIndex += 1;
-  }
-
-  return `${value.toFixed(value >= 10 || unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
-}
+import { formatModelOptionLabel } from "../ui.js";
 
 export function createTranslatorModelOptions(models) {
   if (!Array.isArray(models)) {
@@ -26,7 +9,7 @@ export function createTranslatorModelOptions(models) {
     const name = typeof model?.name === "string" && model.name.trim() ? model.name.trim() : "Unnamed model";
     return {
       value: name,
-      label: `${name} - ${formatBytes(model?.size)}`,
+      label: formatModelOptionLabel(model),
     };
   });
 }
@@ -45,4 +28,8 @@ export function createTranslatorSystemMessageOptions(presets) {
       instructionText:
         typeof preset.instructionText === "string" ? preset.instructionText : "",
     }));
+}
+
+export function findTranslatorSystemMessage(options, systemMessageId) {
+  return options.find((option) => option.id === systemMessageId) ?? null;
 }

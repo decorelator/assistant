@@ -1,35 +1,74 @@
-import { createTranslatorModelOptions, createTranslatorSystemMessageOptions } from "./translator-data.js";
+import {
+  createTranslatorModelOptions,
+  createTranslatorSystemMessageOptions,
+  findTranslatorSystemMessage,
+} from "./translator-data.js";
 import { createTranslatorState } from "./translator-state.js";
 import { mountTranslatorTabUi } from "./translator-tab-ui.js";
 
 export function createTranslatorController({ setStatus }) {
   const state = createTranslatorState();
   const ui = mountTranslatorTabUi();
+  let modelOptions = [];
+  let systemMessageOptions = [];
   let isBusy = false;
   let areModelsLoading = true;
   let areSystemMessagesLoading = true;
 
+  function normalizeSelection(selection) {
+    const hasModel = modelOptions.some((option) => option.value === selection?.model);
+    const hasSystemMessage = systemMessageOptions.some(
+      (option) => option.id === selection?.systemMessageId,
+    );
+
+    return {
+      model: hasModel ? selection.model : modelOptions[0]?.value ?? "",
+      systemMessageId: hasSystemMessage
+        ? selection.systemMessageId
+        : systemMessageOptions[0]?.id ?? null,
+    };
+  }
+
+  function buildAppliedSummary() {
+    const appliedSelection = state.getAppliedSelection();
+    const systemMessage = findTranslatorSystemMessage(
+      systemMessageOptions,
+      appliedSelection.systemMessageId,
+    );
+
+    if (!appliedSelection.model || !systemMessage) {
+      return "";
+    }
+
+    return `Applied translator: ${appliedSelection.model} + ${systemMessage.label}`;
+  }
+
   function syncUi() {
-    ui.renderModelOptions(state.getModelOptions(), areModelsLoading);
-    ui.renderSystemMessageOptions(state.getSystemMessageOptions(), areSystemMessagesLoading);
-    ui.setPendingSelection(state.getPendingSelection());
-    ui.renderAppliedSelection(state.getAppliedSelection());
-    ui.setBusy(isBusy);
-    ui.setApplyEnabled(!isBusy && state.canApply());
+    const selection = normalizeSelection(ui.getSelection());
+
+    ui.render({
+      appliedSummary: buildAppliedSummary(),
+      canApply:
+        !isBusy &&
+        Boolean(selection.model) &&
+        selection.systemMessageId !== null &&
+        state.hasPendingChanges(selection),
+      isBusy,
+      isModelsLoading: areModelsLoading,
+      isSystemMessagesLoading: areSystemMessagesLoading,
+      modelOptions,
+      selection,
+      systemMessageOptions,
+    });
   }
 
-  function handleModelChange() {
-    state.setPendingModel(ui.getSelectedModel());
-    syncUi();
-  }
-
-  function handleSystemMessageChange() {
-    state.setPendingSystemMessageId(ui.getSelectedSystemMessageId());
+  function handleSelectionChange() {
     syncUi();
   }
 
   function handleApplyClick() {
-    const appliedSelection = state.applyPendingSelection();
+    const selection = normalizeSelection(ui.getSelection());
+    const appliedSelection = state.applySelection(selection);
     syncUi();
 
     if (!appliedSelection) {
@@ -37,21 +76,22 @@ export function createTranslatorController({ setStatus }) {
       return;
     }
 
+    const systemMessage = findTranslatorSystemMessage(
+      systemMessageOptions,
+      appliedSelection.systemMessageId,
+    );
     setStatus?.(
-      `Translator applied: ${appliedSelection.model} + ${appliedSelection.systemMessageLabel}`,
+      `Translator applied: ${appliedSelection.model} + ${systemMessage?.label ?? "Unknown preset"}`,
     );
   }
 
   return {
     bindEvents() {
       ui.bindApply(handleApplyClick);
-      ui.bindModelChange(handleModelChange);
-      ui.bindSystemMessageChange(handleSystemMessageChange);
+      ui.bindModelChange(handleSelectionChange);
+      ui.bindSystemMessageChange(handleSelectionChange);
     },
-    getAppliedSelection() {
-      return state.getAppliedSelection();
-    },
-    async initialize() {
+    initialize() {
       syncUi();
     },
     setBusy(nextBusyState) {
@@ -60,12 +100,14 @@ export function createTranslatorController({ setStatus }) {
     },
     updateAvailableModels(models) {
       areModelsLoading = false;
-      state.setModelOptions(createTranslatorModelOptions(models));
+      modelOptions = createTranslatorModelOptions(models);
+      state.syncAppliedSelection(modelOptions, systemMessageOptions);
       syncUi();
     },
     updateSystemMessages(presets) {
       areSystemMessagesLoading = false;
-      state.setSystemMessageOptions(createTranslatorSystemMessageOptions(presets));
+      systemMessageOptions = createTranslatorSystemMessageOptions(presets);
+      state.syncAppliedSelection(modelOptions, systemMessageOptions);
       syncUi();
     },
   };

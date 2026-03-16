@@ -160,4 +160,5 @@ promptHistory.bindEvents();
 translatorController.bindEvents();
 
 updateBusyState(true);
-void Promise.all([initializeModels(), initializeInstructions(), translatorController.initialize()]);
+translatorController.initialize();
+void Promise.all([initializeModels(), initializeInstructions()]);

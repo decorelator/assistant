@@ -1,3 +1,7 @@
+import { renderSelectOptions } from "../ui.js";
+
+const DEFAULT_TRANSLATOR_SUMMARY = "Translator settings are runtime-only. Nothing has been applied yet.";
+
 function buildTranslatorTabMarkup() {
   return `
     <div class="field">
@@ -16,9 +20,7 @@ function buildTranslatorTabMarkup() {
         <option value="">Loading system messages...</option>
       </select>
     </div>
-    <div class="instruction-source" data-translator-summary>
-      Translator settings are runtime-only. Nothing has been applied yet.
-    </div>
+    <div class="instruction-source" data-translator-summary>${DEFAULT_TRANSLATOR_SUMMARY}</div>
     <div class="actions">
       <button type="button" data-translator-apply-button disabled>Apply</button>
     </div>
@@ -39,20 +41,6 @@ export function mountTranslatorTabUi() {
   const applyButton = root.querySelector("[data-translator-apply-button]");
   const summary = root.querySelector("[data-translator-summary]");
 
-  let isBusy = false;
-  let hasModels = false;
-  let hasSystemMessages = false;
-
-  function syncDisabledState() {
-    if (modelSelect) {
-      modelSelect.disabled = isBusy || !hasModels;
-    }
-
-    if (systemMessageSelect) {
-      systemMessageSelect.disabled = isBusy || !hasSystemMessages;
-    }
-  }
-
   return {
     bindApply(handler) {
       applyButton?.addEventListener("click", handler);
@@ -63,93 +51,47 @@ export function mountTranslatorTabUi() {
     bindSystemMessageChange(handler) {
       systemMessageSelect?.addEventListener("change", handler);
     },
-    getSelectedModel() {
-      return modelSelect?.value?.trim() ?? "";
+    getSelection() {
+      const systemMessageValue = systemMessageSelect?.value?.trim() ?? "";
+      return {
+        model: modelSelect?.value?.trim() ?? "",
+        systemMessageId: systemMessageValue ? Number.parseInt(systemMessageValue, 10) : null,
+      };
     },
-    getSelectedSystemMessageId() {
-      const value = systemMessageSelect?.value?.trim() ?? "";
-      return value ? Number.parseInt(value, 10) : null;
-    },
-    renderAppliedSelection(selection) {
-      if (!summary) {
-        return;
-      }
+    render({
+      appliedSummary,
+      canApply,
+      isBusy,
+      isModelsLoading,
+      isSystemMessagesLoading,
+      modelOptions,
+      selection,
+      systemMessageOptions,
+    }) {
+      const hasModels = renderSelectOptions(modelSelect, modelOptions, {
+        emptyLabel: isModelsLoading ? "Loading models..." : "No models available",
+        selectedValue: selection?.model,
+      });
+      const hasSystemMessages = renderSelectOptions(systemMessageSelect, systemMessageOptions, {
+        emptyLabel: isSystemMessagesLoading ? "Loading system messages..." : "No saved system messages",
+        getValue: (option) => option?.id ?? "",
+        selectedValue: selection?.systemMessageId,
+      });
 
-      if (!selection?.model || selection.systemMessageId === null || !selection.systemMessageLabel) {
-        summary.textContent = "Translator settings are runtime-only. Nothing has been applied yet.";
-        return;
-      }
-
-      summary.textContent = `Applied translator: ${selection.model} + ${selection.systemMessageLabel}`;
-    },
-    renderModelOptions(options, isLoading = false) {
-      if (!modelSelect) {
-        return;
-      }
-
-      hasModels = Array.isArray(options) && options.length > 0;
-      modelSelect.innerHTML = "";
-
-      if (!hasModels) {
-        const option = document.createElement("option");
-        option.value = "";
-        option.textContent = isLoading ? "Loading models..." : "No models available";
-        modelSelect.appendChild(option);
-        syncDisabledState();
-        return;
-      }
-
-      for (const optionData of options) {
-        const option = document.createElement("option");
-        option.value = optionData.value;
-        option.textContent = optionData.label;
-        modelSelect.appendChild(option);
-      }
-
-      syncDisabledState();
-    },
-    renderSystemMessageOptions(options, isLoading = false) {
-      if (!systemMessageSelect) {
-        return;
-      }
-
-      hasSystemMessages = Array.isArray(options) && options.length > 0;
-      systemMessageSelect.innerHTML = "";
-
-      if (!hasSystemMessages) {
-        const option = document.createElement("option");
-        option.value = "";
-        option.textContent = isLoading ? "Loading system messages..." : "No saved system messages";
-        systemMessageSelect.appendChild(option);
-        syncDisabledState();
-        return;
-      }
-
-      for (const optionData of options) {
-        const option = document.createElement("option");
-        option.value = String(optionData.id);
-        option.textContent = optionData.label;
-        systemMessageSelect.appendChild(option);
-      }
-
-      syncDisabledState();
-    },
-    setApplyEnabled(isEnabled) {
-      if (applyButton) {
-        applyButton.disabled = !isEnabled;
-      }
-    },
-    setBusy(nextBusyState) {
-      isBusy = nextBusyState;
-      syncDisabledState();
-    },
-    setPendingSelection(selection) {
-      if (modelSelect && selection?.model) {
-        modelSelect.value = selection.model;
+      if (modelSelect) {
+        modelSelect.disabled = isBusy || !hasModels;
       }
 
       if (systemMessageSelect) {
-        systemMessageSelect.value = selection?.systemMessageId ? String(selection.systemMessageId) : "";
+        systemMessageSelect.disabled = isBusy || !hasSystemMessages;
+      }
+
+      if (summary) {
+        summary.textContent = appliedSummary || DEFAULT_TRANSLATOR_SUMMARY;
+      }
+
+      if (applyButton) {
+        applyButton.disabled = !canApply;
       }
     },
   };

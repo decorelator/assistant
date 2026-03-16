@@ -84,6 +84,46 @@ function formatBytes(bytes) {
   return `${value.toFixed(value >= 10 || unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
 }
 
+export function formatModelOptionLabel(model) {
+  const title = model?.name ?? "Unnamed model";
+  const size = formatBytes(model?.size);
+  return `${title} - ${size}`;
+}
+
+export function renderSelectOptions(
+  selectElement,
+  options,
+  { emptyLabel, getValue = (option) => option?.value ?? "", getLabel = (option) => option?.label ?? "", selectedValue = null } = {},
+) {
+  if (!selectElement) {
+    return false;
+  }
+
+  const normalizedOptions = Array.isArray(options) ? options : [];
+  selectElement.innerHTML = "";
+
+  if (normalizedOptions.length === 0) {
+    const option = document.createElement("option");
+    option.value = "";
+    option.textContent = emptyLabel;
+    selectElement.appendChild(option);
+    return false;
+  }
+
+  for (const item of normalizedOptions) {
+    const option = document.createElement("option");
+    option.value = String(getValue(item));
+    option.textContent = String(getLabel(item));
+    selectElement.appendChild(option);
+  }
+
+  if (selectedValue !== null && selectedValue !== undefined && String(selectedValue)) {
+    selectElement.value = String(selectedValue);
+  }
+
+  return true;
+}
+
 function escapeHtml(value) {
   return String(value)
     .replaceAll("&", "&amp;")
@@ -277,24 +317,13 @@ export function renderModelOptions(models) {
     return;
   }
 
-  modelSelect.innerHTML = "";
+  const hasModels = renderSelectOptions(modelSelect, models, {
+    emptyLabel: "No models available",
+    getValue: (model) => model?.name ?? "Unnamed model",
+    getLabel: formatModelOptionLabel,
+  });
 
-  if (models.length === 0) {
-    modelSelect.innerHTML = '<option value="">No models available</option>';
-    modelSelect.disabled = true;
-    return;
-  }
-
-  for (const model of models) {
-    const title = model.name ?? "Unnamed model";
-    const size = formatBytes(model.size);
-    const option = document.createElement("option");
-    option.value = title;
-    option.textContent = `${title} - ${size}`;
-    modelSelect.appendChild(option);
-  }
-
-  modelSelect.disabled = false;
+  modelSelect.disabled = !hasModels;
 }
 
 export function renderRecentPromptOptions(prompts) {
@@ -340,28 +369,12 @@ export function renderInstructionPresetOptions(presets, selectedPresetId) {
     return;
   }
 
-  hasInstructionPresets = presets.length > 0;
-  instructionPresetSelect.innerHTML = "";
-
-  if (!hasInstructionPresets) {
-    const option = document.createElement("option");
-    option.value = "";
-    option.textContent = "No saved presets";
-    instructionPresetSelect.appendChild(option);
-    syncInstructionPresetControls();
-    return;
-  }
-
-  for (const preset of presets) {
-    const option = document.createElement("option");
-    option.value = String(preset.id);
-    option.textContent = preset.title ?? "Untitled preset";
-    instructionPresetSelect.appendChild(option);
-  }
-
-  if (selectedPresetId) {
-    instructionPresetSelect.value = String(selectedPresetId);
-  }
+  hasInstructionPresets = renderSelectOptions(instructionPresetSelect, presets, {
+    emptyLabel: "No saved presets",
+    getValue: (preset) => preset?.id ?? "",
+    getLabel: (preset) => preset?.title ?? "Untitled preset",
+    selectedValue: selectedPresetId,
+  });
 
   syncInstructionPresetControls();
 }
