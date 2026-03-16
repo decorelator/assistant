@@ -34,6 +34,12 @@ export async function stopModel(model) {
   });
 }
 
+export async function stopGeneration() {
+  return requestJson("/api/message/stop", {
+    method: "POST",
+  });
+}
+
 export async function loadConfig() {
   return requestJson("/api/config");
 }

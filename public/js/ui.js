@@ -14,6 +14,7 @@ const deleteDialogCancelButton = document.querySelector("[data-delete-dialog-can
 const deleteDialogConfirmButton = document.querySelector("[data-delete-dialog-confirm]");
 const deleteDialogCopy = document.querySelector("[data-delete-dialog-copy]");
 const sendButton = document.querySelector("[data-send-button]");
+const stopButton = document.querySelector("[data-stop-button]");
 const infoButton = document.querySelector("[data-info-button]");
 const refreshModelsButton = document.querySelector("[data-refresh-models-button]");
 const currentInstructionName = document.querySelector("[data-current-instruction-name]");
@@ -33,6 +34,7 @@ const defaultPromptPlaceholder = promptInput?.getAttribute("placeholder") ?? "As
 let hasInstructionPresets = false;
 let instructionPresetSelectionEnabled = false;
 let isBusyState = false;
+let canStopGeneration = false;
 let assistantTranslateEnabled = false;
 let assistantTranslateHandler = null;
 
@@ -51,6 +53,12 @@ function syncAssistantTranslateButtons() {
 
   for (const button of translateButtons) {
     button.disabled = isBusyState || !assistantTranslateEnabled;
+  }
+}
+
+function syncStopButton() {
+  if (stopButton) {
+    stopButton.disabled = !canStopGeneration;
   }
 }
 
@@ -165,6 +173,10 @@ export function bindDeleteDialogConfirm(handler) {
 
 export function bindInfoButton(handler) {
   infoButton?.addEventListener("click", handler);
+}
+
+export function bindStopButton(handler) {
+  stopButton?.addEventListener("click", handler);
 }
 
 export function bindRefreshModelsButton(handler) {
@@ -421,6 +433,7 @@ export function setBusy(isBusy, availableModelCount) {
 
   syncInstructionPresetControls();
   syncAssistantTranslateButtons();
+  syncStopButton();
 }
 
 export function setDefaults(config) {
@@ -529,4 +542,9 @@ export function setStatus(text) {
 export function setAssistantTranslateEnabled(isEnabled) {
   assistantTranslateEnabled = isEnabled;
   syncAssistantTranslateButtons();
+}
+
+export function setStopEnabled(isEnabled) {
+  canStopGeneration = isEnabled;
+  syncStopButton();
 }

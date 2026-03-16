@@ -6,6 +6,7 @@ const {
   handleInstructionPresetListRequest,
   handleInstructionPresetUpdateRequest,
   handleMessageRequest,
+  handleMessageStopRequest,
   handleModelInfoRequest,
   handleModelStopRequest,
   handleModelsRequest,
@@ -53,6 +54,11 @@ async function handleRequest(
 
   if (url === "/api/message" && request.method === "POST") {
     await handleMessageRequest(request, response);
+    return;
+  }
+
+  if (url === "/api/message/stop" && request.method === "POST") {
+    handleMessageStopRequest(response);
     return;
   }
 

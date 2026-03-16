@@ -45,6 +45,7 @@ const DEFAULT_KEEP_ALIVE = "20m";
 const GENERATE_TIMEOUT_MS = 180000;
 const MODEL_INFO_TIMEOUT_MS = 20000;
 const UNLOAD_TIMEOUT_MS = 10000;
+let activeGenerationController: AbortController | null = null;
 
 async function fetchModels() {
   const payload = await requestOllamaJson<OllamaTagsResponse>(
@@ -60,6 +61,8 @@ function getBaseUrl() {
 }
 
 async function generateMessage(model: string, prompt: string, instruction?: string) {
+  const generationController = new AbortController();
+  activeGenerationController = generationController;
   const requestBody = {
     model,
     prompt,
@@ -78,7 +81,12 @@ async function generateMessage(model: string, prompt: string, instruction?: stri
     GENERATE_TIMEOUT_MS,
     requestBody,
     "Could not get a response from Ollama.",
-  );
+    generationController.signal,
+  ).finally(() => {
+    if (activeGenerationController === generationController) {
+      activeGenerationController = null;
+    }
+  });
   return typeof payload.response === "string" ? payload.response : "";
 }
 
@@ -99,6 +107,16 @@ async function unloadModel(model: string) {
     { model, keep_alive: 0 } satisfies UnloadRequest,
     "Could not unload model from Ollama.",
   );
+}
+
+function stopActiveGeneration() {
+  if (!activeGenerationController) {
+    return false;
+  }
+
+  activeGenerationController.abort();
+  activeGenerationController = null;
+  return true;
 }
 
 function formatModelInfo(model: string, payload: ShowResponse) {
@@ -134,11 +152,20 @@ async function postOllamaJson<ResponsePayload>(
   timeoutMs: number,
   payload: unknown,
   errorMessage: string,
+  signal?: AbortSignal,
 ) {
-  return requestOllamaJson<ResponsePayload>(path, timeoutMs, errorMessage, {
+  const requestOptions: RequestInit = {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
+  };
+
+  if (signal) {
+    requestOptions.signal = signal;
+  }
+
+  return requestOllamaJson<ResponsePayload>(path, timeoutMs, errorMessage, {
+    ...requestOptions,
   });
 }
 
@@ -159,13 +186,41 @@ async function requestOllamaJson<ResponsePayload>(
 
 async function fetchWithTimeout(url: string, timeoutMs: number, options?: RequestInit) {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  let didTimeout = false;
+  const timeout = setTimeout(() => {
+    didTimeout = true;
+    controller.abort();
+  }, timeoutMs);
+  const externalSignal = options?.signal;
+  let abortListener: (() => void) | null = null;
+
+  if (externalSignal) {
+    if (externalSignal.aborted) {
+      controller.abort();
+    } else {
+      abortListener = () => controller.abort();
+      externalSignal.addEventListener("abort", abortListener, { once: true });
+    }
+  }
 
   try {
     return await fetch(url, { ...options, signal: controller.signal });
+  } catch (error) {
+    if (didTimeout) {
+      throw new Error("Could not get a response from Ollama.");
+    }
+
+    if (externalSignal?.aborted) {
+      throw new Error("Generation stopped.");
+    }
+
+    throw error;
   } finally {
     clearTimeout(timeout);
+    if (externalSignal && abortListener) {
+      externalSignal.removeEventListener("abort", abortListener);
+    }
   }
 }
 
-module.exports = { fetchModels, fetchModelInfo, generateMessage, unloadModel };
+module.exports = { fetchModels, fetchModelInfo, generateMessage, stopActiveGeneration, unloadModel };

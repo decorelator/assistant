@@ -1,7 +1,13 @@
 const { getDefaultInstruction } = require("../config/env");
 const { touchInstructionPreset } = require("../db/instruction-presets");
 const { readJsonBody, sendJson } = require("../lib/http");
-const { fetchModels, fetchModelInfo, generateMessage, unloadModel } = require("../services/ollama");
+const {
+  fetchModels,
+  fetchModelInfo,
+  generateMessage,
+  stopActiveGeneration,
+  unloadModel,
+} = require("../services/ollama");
 const { readPositiveInteger, readTrimmedString } = require("./request-utils");
 
 async function handleModelsRequest(response: import("node:http").ServerResponse) {
@@ -41,6 +47,11 @@ async function handleMessageRequest(
 
     sendJson(response, 200, { response: reply });
   } catch (error) {
+    if (error instanceof Error && error.message === "Generation stopped.") {
+      sendJson(response, 499, { error: "Generation stopped." });
+      return;
+    }
+
     const message = error instanceof Error ? error.message : "Could not send message.";
     sendJson(response, 502, { error: message });
   }
@@ -88,8 +99,13 @@ async function handleModelStopRequest(
   }
 }
 
+function handleMessageStopRequest(response: import("node:http").ServerResponse) {
+  sendJson(response, 200, { stopped: stopActiveGeneration() });
+}
+
 module.exports = {
   handleMessageRequest,
+  handleMessageStopRequest,
   handleModelInfoRequest,
   handleModelStopRequest,
   handleModelsRequest,

@@ -1,4 +1,4 @@
-import { loadModelInfo, loadModels, sendMessage, stopModel } from "./api.js";
+import { loadModelInfo, loadModels, sendMessage, stopGeneration, stopModel } from "./api.js";
 import { createInstructionController } from "./instructions.js";
 import { createPromptHistoryController } from "./prompt-history.js";
 import { createTranslatorController } from "./translator/translator-controller.js";
@@ -9,6 +9,7 @@ import {
   bindInfoButton,
   bindModelChange,
   bindRefreshModelsButton,
+  bindStopButton,
   bindTabs,
   clearMessages,
   focusPrompt,
@@ -24,11 +25,13 @@ import {
   setStatus,
   setAssistantTranslateEnabled,
   setPromptValue,
+  setStopEnabled,
 } from "./ui.js";
 
 let availableModels = [];
 const promptHistory = createPromptHistoryController();
 let appliedTranslatorSettings = null;
+let isGenerating = false;
 const translatorController = createTranslatorController({
   onAppliedSelectionChange(settings) {
     appliedTranslatorSettings = settings;
@@ -40,6 +43,23 @@ const translatorController = createTranslatorController({
 function updateBusyState(isBusy) {
   setBusy(isBusy, availableModels.length);
   translatorController.setBusy(isBusy);
+}
+
+function isGenerationStoppedError(error) {
+  return (
+    error instanceof Error &&
+    (error.message === "Generation stopped." || error.status === 499)
+  );
+}
+
+function beginGeneration() {
+  isGenerating = true;
+  setStopEnabled(true);
+}
+
+function endGeneration() {
+  isGenerating = false;
+  setStopEnabled(false);
 }
 const instructionController = createInstructionController({
   onInstructionNameChange: setCurrentInstructionName,
@@ -68,6 +88,7 @@ async function handleSubmit(event) {
   setPromptValue("");
 
   updateBusyState(true);
+  beginGeneration();
   setStatus(`Sending to ${model}...`);
 
   try {
@@ -79,9 +100,14 @@ async function handleSubmit(event) {
     renderMessage("assistant", reply || "No response from model.");
     setStatus(`Ready with ${model}`);
   } catch (error) {
-    renderMessage("assistant", error instanceof Error ? error.message : "Request failed");
-    setStatus("Message failed");
+    if (isGenerationStoppedError(error)) {
+      setStatus("Generation stopped.");
+    } else {
+      renderMessage("assistant", error instanceof Error ? error.message : "Request failed");
+      setStatus("Message failed");
+    }
   } finally {
+    endGeneration();
     updateBusyState(false);
     focusPrompt();
   }
@@ -119,6 +145,7 @@ async function handleAssistantTranslate(sourceText) {
   renderMessage("user", sourceText);
 
   updateBusyState(true);
+  beginGeneration();
   setStatus(`Translating with ${appliedTranslatorSettings.model}...`);
 
   try {
@@ -131,11 +158,34 @@ async function handleAssistantTranslate(sourceText) {
     renderMessage("assistant", reply || "No response from model.");
     setStatus(`Translation ready with ${appliedTranslatorSettings.model}`);
   } catch (error) {
-    renderMessage("assistant", error instanceof Error ? error.message : "Translation failed");
-    setStatus("Translation failed");
+    if (isGenerationStoppedError(error)) {
+      setStatus("Generation stopped.");
+    } else {
+      renderMessage("assistant", error instanceof Error ? error.message : "Translation failed");
+      setStatus("Translation failed");
+    }
   } finally {
+    endGeneration();
     updateBusyState(false);
     focusPrompt();
+  }
+}
+
+async function handleStopClick() {
+  if (!isGenerating) {
+    return;
+  }
+
+  setStopEnabled(false);
+  setStatus("Stopping generation...");
+
+  try {
+    await stopGeneration();
+  } catch (error) {
+    setStatus(error instanceof Error ? error.message : "Could not stop generation.");
+    if (isGenerating) {
+      setStopEnabled(true);
+    }
   }
 }
 
@@ -211,6 +261,7 @@ bindClearButton(handleClearClick);
 bindInfoButton(handleInfoClick);
 bindModelChange(handleModelChange);
 bindRefreshModelsButton(initializeModels);
+bindStopButton(handleStopClick);
 bindTabs();
 instructionController.bindEvents();
 promptHistory.bindEvents();
