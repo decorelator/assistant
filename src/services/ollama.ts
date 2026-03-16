@@ -35,8 +35,8 @@ type ShowResponse = {
 
 const DEFAULT_OLLAMA_URL = "http://127.0.0.1:11434";
 const DEFAULT_TIMEOUT_MS = 2500;
-const DEFAULT_NUM_GPU = 100;
-const DEFAULT_KEEP_ALIVE = "10m";
+const DEFAULT_NUM_GPU = 50;
+const DEFAULT_KEEP_ALIVE = "20m";
 const GENERATE_TIMEOUT_MS = 180000;
 const MODEL_INFO_TIMEOUT_MS = 20000;
 
