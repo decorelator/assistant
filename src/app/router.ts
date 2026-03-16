@@ -7,6 +7,7 @@ const {
   handleInstructionPresetUpdateRequest,
   handleMessageRequest,
   handleMessageStopRequest,
+  handleModelDeleteRequest,
   handleModelInfoRequest,
   handleModelStopRequest,
   handleModelsRequest,
@@ -69,6 +70,11 @@ async function handleRequest(
 
   if (url === "/api/model/stop" && request.method === "POST") {
     await handleModelStopRequest(request, response);
+    return;
+  }
+
+  if (url === "/api/model" && request.method === "DELETE") {
+    await handleModelDeleteRequest(request, response);
     return;
   }
 

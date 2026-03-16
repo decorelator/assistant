@@ -1,4 +1,4 @@
-import { loadModelInfo, loadModels, sendMessage, stopGeneration, stopModel } from "./api.js";
+import { deleteModel, loadModelInfo, loadModels, sendMessage, stopGeneration, stopModel } from "./api.js";
 import { createInstructionController } from "./instructions.js";
 import { createPromptHistoryController } from "./prompt-history.js";
 import { createTranslatorController } from "./translator/translator-controller.js";
@@ -6,21 +6,27 @@ import {
   bindAssistantTranslate,
   bindChatForm,
   bindClearButton,
+  bindDeleteModelButton,
+  bindDeleteModelDialogCancel,
+  bindDeleteModelDialogConfirm,
   bindInfoButton,
   bindModelChange,
   bindRefreshModelsButton,
   bindStopButton,
   bindTabs,
   clearMessages,
+  closeDeleteModelDialog,
   focusPrompt,
   getSelectedModel,
   markMessagesAsStale,
+  openDeleteModelDialog,
   renderMessage,
   renderModelInfo,
   renderModelOptions,
   setCurrentInstructionName,
   setCurrentModelName,
   setBusy,
+  setDeleteModelDialogCopy,
   setDefaults,
   setStatus,
   setAssistantTranslateEnabled,
@@ -32,6 +38,7 @@ let availableModels = [];
 const promptHistory = createPromptHistoryController();
 let appliedTranslatorSettings = null;
 let isGenerating = false;
+let pendingDeleteModel = "";
 const translatorController = createTranslatorController({
   onAppliedSelectionChange(settings) {
     appliedTranslatorSettings = settings;
@@ -211,27 +218,74 @@ function handleClearClick() {
   focusPrompt();
 }
 
+function handleDeleteModelClick() {
+  const model = getSelectedModel();
+
+  if (!model) {
+    setStatus("Select a model first.");
+    return;
+  }
+
+  pendingDeleteModel = model;
+  setDeleteModelDialogCopy(`Remove "${model}" from the Ollama server? This cannot be undone.`);
+  openDeleteModelDialog();
+}
+
+function handleDeleteModelCancel() {
+  pendingDeleteModel = "";
+  closeDeleteModelDialog();
+}
+
+async function handleDeleteModelConfirm() {
+  const model = pendingDeleteModel || getSelectedModel();
+
+  if (!model) {
+    closeDeleteModelDialog();
+    setStatus("Select a model first.");
+    return;
+  }
+
+  closeDeleteModelDialog();
+  pendingDeleteModel = "";
+  updateBusyState(true);
+  setStatus(`Removing ${model}...`);
+
+  try {
+    await deleteModel(model);
+    renderModelInfo(`Removed model: ${model}`);
+    setStatus(`Removed ${model}`);
+    await initializeModels();
+  } catch (error) {
+    setStatus(error instanceof Error ? error.message : "Could not remove model.");
+  } finally {
+    updateBusyState(false);
+  }
+}
+
 function handleModelChange() {
   const model = getSelectedModel();
   setCurrentModelName(model);
   renderModelInfo(model ? `Current model: ${model}` : "Select a model and tap Model info.");
 }
 
-async function initializeModels() {
+async function initializeModels(preferredModel = "") {
   setStatus("Loading models...");
 
   try {
     availableModels = await loadModels();
-    renderModelOptions(availableModels);
+    const fallbackModel = preferredModel || getSelectedModel();
+    renderModelOptions(availableModels, fallbackModel);
     translatorController.updateAvailableModels(availableModels);
+    const selectedModel = getSelectedModel();
     setStatus(`${availableModels.length} model${availableModels.length === 1 ? "" : "s"} available`);
 
     if (availableModels.length > 0) {
-      const initialModelName = availableModels[0].name ?? "Unnamed model";
-      setCurrentModelName(initialModelName);
-      renderModelInfo(`Current model: ${initialModelName}`);
+      const currentModel = selectedModel || availableModels[0]?.name || "Unnamed model";
+      setCurrentModelName(currentModel);
+      renderModelInfo(`Current model: ${currentModel}`);
     } else {
       setCurrentModelName("Not selected");
+      renderModelInfo("Select a model and load info.");
     }
   } catch (error) {
     availableModels = [];
@@ -258,6 +312,9 @@ async function initializeInstructions() {
 bindChatForm(handleSubmit);
 bindAssistantTranslate(handleAssistantTranslate);
 bindClearButton(handleClearClick);
+bindDeleteModelButton(handleDeleteModelClick);
+bindDeleteModelDialogCancel(handleDeleteModelCancel);
+bindDeleteModelDialogConfirm(handleDeleteModelConfirm);
 bindInfoButton(handleInfoClick);
 bindModelChange(handleModelChange);
 bindRefreshModelsButton(initializeModels);

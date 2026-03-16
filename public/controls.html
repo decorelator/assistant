@@ -146,6 +146,9 @@
           Refresh models
         </button>
         <button type="button" class="button-secondary" data-info-button>Load model info</button>
+        <button type="button" class="button-danger" data-delete-model-button disabled>
+          Remove model
+        </button>
       </div>
     </div>
     <div class="field">
@@ -190,6 +193,19 @@
     <div class="actions">
       <button type="button" class="button-secondary" data-delete-dialog-cancel>Cancel</button>
       <button type="button" class="button-danger" data-delete-dialog-confirm>Delete</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog class="dialog" data-delete-model-dialog>
+  <form class="dialog-form" method="dialog">
+    <h2 class="dialog-title">Remove model</h2>
+    <p class="dialog-copy" data-delete-model-dialog-copy>
+      This model will be removed from the Ollama server.
+    </p>
+    <div class="actions">
+      <button type="button" class="button-secondary" data-delete-model-dialog-cancel>Cancel</button>
+      <button type="button" class="button-danger" data-delete-model-dialog-confirm>Remove</button>
     </div>
   </form>
 </dialog>

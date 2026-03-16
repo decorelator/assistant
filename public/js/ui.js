@@ -13,6 +13,11 @@ const deleteDialog = document.querySelector("[data-delete-preset-dialog]");
 const deleteDialogCancelButton = document.querySelector("[data-delete-dialog-cancel]");
 const deleteDialogConfirmButton = document.querySelector("[data-delete-dialog-confirm]");
 const deleteDialogCopy = document.querySelector("[data-delete-dialog-copy]");
+const deleteModelButton = document.querySelector("[data-delete-model-button]");
+const deleteModelDialog = document.querySelector("[data-delete-model-dialog]");
+const deleteModelDialogCancelButton = document.querySelector("[data-delete-model-dialog-cancel]");
+const deleteModelDialogConfirmButton = document.querySelector("[data-delete-model-dialog-confirm]");
+const deleteModelDialogCopy = document.querySelector("[data-delete-model-dialog-copy]");
 const sendButton = document.querySelector("[data-send-button]");
 const stopButton = document.querySelector("[data-stop-button]");
 const infoButton = document.querySelector("[data-info-button]");
@@ -135,8 +140,16 @@ export function renderSelectOptions(
     selectElement.appendChild(option);
   }
 
-  if (selectedValue !== null && selectedValue !== undefined && String(selectedValue)) {
-    selectElement.value = String(selectedValue);
+  const normalizedSelectedValue =
+    selectedValue !== null && selectedValue !== undefined ? String(selectedValue) : "";
+  const hasSelectedValue =
+    normalizedSelectedValue &&
+    normalizedOptions.some((item) => String(getValue(item)) === normalizedSelectedValue);
+
+  if (hasSelectedValue) {
+    selectElement.value = normalizedSelectedValue;
+  } else if (selectElement.options.length > 0) {
+    selectElement.selectedIndex = 0;
   }
 
   return true;
@@ -169,6 +182,18 @@ export function bindDeleteDialogCancel(handler) {
 
 export function bindDeleteDialogConfirm(handler) {
   deleteDialogConfirmButton?.addEventListener("click", handler);
+}
+
+export function bindDeleteModelButton(handler) {
+  deleteModelButton?.addEventListener("click", handler);
+}
+
+export function bindDeleteModelDialogCancel(handler) {
+  deleteModelDialogCancelButton?.addEventListener("click", handler);
+}
+
+export function bindDeleteModelDialogConfirm(handler) {
+  deleteModelDialogConfirmButton?.addEventListener("click", handler);
 }
 
 export function bindInfoButton(handler) {
@@ -289,28 +314,9 @@ export function renderMessage(role, text) {
   item.appendChild(roleElement);
   item.appendChild(textElement);
 
-  if (role !== "user") {
+  if (role === "user" || role === "assistant") {
     const actionsElement = document.createElement("div");
     actionsElement.className = "message-actions";
-
-    const copyButton = document.createElement("button");
-    copyButton.type = "button";
-    copyButton.className = "button-secondary message-copy-button";
-    copyButton.textContent = "Copy";
-    copyButton.addEventListener("click", async () => {
-      try {
-        await navigator.clipboard.writeText(text);
-        copyButton.textContent = "Copied";
-        setTimeout(() => {
-          copyButton.textContent = "Copy";
-        }, 1200);
-      } catch {
-        copyButton.textContent = "Failed";
-        setTimeout(() => {
-          copyButton.textContent = "Copy";
-        }, 1200);
-      }
-    });
 
     const translateButton = document.createElement("button");
     translateButton.type = "button";
@@ -323,7 +329,30 @@ export function renderMessage(role, text) {
     });
 
     actionsElement.appendChild(translateButton);
-    actionsElement.appendChild(copyButton);
+
+    if (role !== "user") {
+      const copyButton = document.createElement("button");
+      copyButton.type = "button";
+      copyButton.className = "button-secondary message-copy-button";
+      copyButton.textContent = "Copy";
+      copyButton.addEventListener("click", async () => {
+        try {
+          await navigator.clipboard.writeText(text);
+          copyButton.textContent = "Copied";
+          setTimeout(() => {
+            copyButton.textContent = "Copy";
+          }, 1200);
+        } catch {
+          copyButton.textContent = "Failed";
+          setTimeout(() => {
+            copyButton.textContent = "Copy";
+          }, 1200);
+        }
+      });
+
+      actionsElement.appendChild(copyButton);
+    }
+
     item.appendChild(actionsElement);
   }
 
@@ -350,7 +379,7 @@ export function renderModelInfo(text) {
   modelInfo.scrollTop = 0;
 }
 
-export function renderModelOptions(models) {
+export function renderModelOptions(models, selectedValue = getSelectedModel()) {
   if (!modelSelect) {
     return;
   }
@@ -359,6 +388,7 @@ export function renderModelOptions(models) {
     emptyLabel: "No models available",
     getValue: (model) => model?.name ?? "Unnamed model",
     getLabel: formatModelOptionLabel,
+    selectedValue,
   });
 
   modelSelect.disabled = !hasModels;
@@ -420,6 +450,7 @@ export function renderInstructionPresetOptions(presets, selectedPresetId) {
 export function setBusy(isBusy, availableModelCount) {
   isBusyState = isBusy;
   clearButton && (clearButton.disabled = isBusy);
+  deleteModelButton && (deleteModelButton.disabled = isBusy || availableModelCount === 0);
   sendButton && (sendButton.disabled = isBusy);
   infoButton && (infoButton.disabled = isBusy);
   refreshModelsButton && (refreshModelsButton.disabled = isBusy);
@@ -490,6 +521,10 @@ export function openDeleteDialog() {
   deleteDialog?.showModal();
 }
 
+export function openDeleteModelDialog() {
+  deleteModelDialog?.showModal();
+}
+
 export function openSaveDialog() {
   if (!saveDialog) {
     return;
@@ -503,6 +538,10 @@ export function openSaveDialog() {
 
 export function closeDeleteDialog() {
   deleteDialog?.close();
+}
+
+export function closeDeleteModelDialog() {
+  deleteModelDialog?.close();
 }
 
 export function closeSaveDialog() {
@@ -536,6 +575,12 @@ export function setPresetTitleValue(value) {
 export function setStatus(text) {
   if (status) {
     status.textContent = text;
+  }
+}
+
+export function setDeleteModelDialogCopy(text) {
+  if (deleteModelDialogCopy) {
+    deleteModelDialogCopy.textContent = text;
   }
 }
 

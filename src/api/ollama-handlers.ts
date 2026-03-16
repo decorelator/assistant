@@ -2,6 +2,7 @@ const { getDefaultInstruction } = require("../config/env");
 const { touchInstructionPreset } = require("../db/instruction-presets");
 const { readJsonBody, sendJson } = require("../lib/http");
 const {
+  deleteModel,
   fetchModels,
   fetchModelInfo,
   generateMessage,
@@ -99,12 +100,34 @@ async function handleModelStopRequest(
   }
 }
 
+async function handleModelDeleteRequest(
+  request: import("node:http").IncomingMessage,
+  response: import("node:http").ServerResponse,
+) {
+  try {
+    const body = await readJsonBody(request);
+    const model = readTrimmedString(body.model);
+
+    if (!model) {
+      sendJson(response, 400, { error: "Model is required." });
+      return;
+    }
+
+    await deleteModel(model);
+    sendJson(response, 200, { deleted: true });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Could not delete model.";
+    sendJson(response, 502, { error: message });
+  }
+}
+
 function handleMessageStopRequest(response: import("node:http").ServerResponse) {
   sendJson(response, 200, { stopped: stopActiveGeneration() });
 }
 
 module.exports = {
   handleMessageRequest,
+  handleModelDeleteRequest,
   handleMessageStopRequest,
   handleModelInfoRequest,
   handleModelStopRequest,

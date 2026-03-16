@@ -27,6 +27,10 @@ type UnloadRequest = {
   keep_alive: 0;
 };
 
+type DeleteRequest = {
+  model: string;
+};
+
 type ShowRequest = {
   model: string;
 };
@@ -40,11 +44,12 @@ type ShowResponse = {
 
 const DEFAULT_OLLAMA_URL = "http://127.0.0.1:11434";
 const DEFAULT_TIMEOUT_MS = 2500;
-const DEFAULT_NUM_GPU = 32;
+const DEFAULT_NUM_GPU = 9999;
 const DEFAULT_KEEP_ALIVE = "20m";
 const GENERATE_TIMEOUT_MS = 180000;
 const MODEL_INFO_TIMEOUT_MS = 20000;
 const UNLOAD_TIMEOUT_MS = 10000;
+const DELETE_TIMEOUT_MS = 30000;
 let activeGenerationController: AbortController | null = null;
 
 async function fetchModels() {
@@ -106,6 +111,19 @@ async function unloadModel(model: string) {
     UNLOAD_TIMEOUT_MS,
     { model, keep_alive: 0 } satisfies UnloadRequest,
     "Could not unload model from Ollama.",
+  );
+}
+
+async function deleteModel(model: string) {
+  await requestOllamaJson(
+    "/api/delete",
+    DELETE_TIMEOUT_MS,
+    "Could not delete model from Ollama.",
+    {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ model } satisfies DeleteRequest),
+    },
   );
 }
 
@@ -223,4 +241,11 @@ async function fetchWithTimeout(url: string, timeoutMs: number, options?: Reques
   }
 }
 
-module.exports = { fetchModels, fetchModelInfo, generateMessage, stopActiveGeneration, unloadModel };
+module.exports = {
+  deleteModel,
+  fetchModels,
+  fetchModelInfo,
+  generateMessage,
+  stopActiveGeneration,
+  unloadModel,
+};
