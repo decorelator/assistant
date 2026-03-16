@@ -18,6 +18,7 @@ import {
   closeDeleteModelDialog,
   focusPrompt,
   getSelectedModel,
+  getIncludedMessages,
   markMessagesAsStale,
   openDeleteModelDialog,
   renderMessage,
@@ -83,6 +84,7 @@ async function handleSubmit(event) {
   const instruction = instructionController.getInstructionValue();
   const selectedPresetId = instructionController.getSelectedPresetId();
   const prompt = promptHistory.getPromptForSubmit();
+  const includedMessages = getIncludedMessages();
 
   if (!model || !prompt) {
     setStatus("Write a message first.");
@@ -100,7 +102,7 @@ async function handleSubmit(event) {
 
   try {
     await tryStopModel(translatorModel, model);
-    const reply = await sendMessage(model, prompt, instruction, selectedPresetId);
+    const reply = await sendMessage(model, prompt, instruction, selectedPresetId, includedMessages);
     if (selectedPresetId) {
       instructionController.markPresetAsUsed(selectedPresetId);
     }
@@ -143,6 +145,8 @@ async function handleInfoClick() {
 }
 
 async function handleAssistantTranslate(sourceText) {
+  const includedMessages = getIncludedMessages();
+
   if (!appliedTranslatorSettings?.model) {
     setStatus("Apply translator settings first.");
     return;
@@ -161,6 +165,8 @@ async function handleAssistantTranslate(sourceText) {
       appliedTranslatorSettings.model,
       sourceText,
       appliedTranslatorSettings.instructionText,
+      null,
+      includedMessages,
     );
     renderMessage("assistant", reply || "No response from model.");
     setStatus(`Translation ready with ${appliedTranslatorSettings.model}`);

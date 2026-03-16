@@ -22,6 +22,11 @@ type GenerateResponse = {
   response?: string;
 };
 
+type SelectedMessage = {
+  role: "user" | "assistant";
+  text: string;
+};
+
 type UnloadRequest = {
   model: string;
   keep_alive: 0;
@@ -65,12 +70,37 @@ function getBaseUrl() {
   return (process.env.OLLAMA_BASE_URL?.trim() || DEFAULT_OLLAMA_URL).replace(/\/+$/, "");
 }
 
-async function generateMessage(model: string, prompt: string, instruction?: string) {
+function buildPrompt(prompt: string, selectedMessages: SelectedMessage[]) {
+  if (selectedMessages.length === 0) {
+    return prompt;
+  }
+
+  const conversationContext = selectedMessages
+    .map(({ role, text }) => `${role === "user" ? "User" : "Assistant"}:\n${text}`)
+    .join("\n\n");
+
+  return [
+    "Use the selected conversation context below when it helps answer the current user message.",
+    "",
+    "Selected conversation context:",
+    conversationContext,
+    "",
+    "Current user message:",
+    prompt,
+  ].join("\n");
+}
+
+async function generateMessage(
+  model: string,
+  prompt: string,
+  instruction?: string,
+  selectedMessages: SelectedMessage[] = [],
+) {
   const generationController = new AbortController();
   activeGenerationController = generationController;
   const requestBody = {
     model,
-    prompt,
+    prompt: buildPrompt(prompt, selectedMessages),
     system: instruction ?? "",
     keep_alive: DEFAULT_KEEP_ALIVE,
     options: {
@@ -79,7 +109,7 @@ async function generateMessage(model: string, prompt: string, instruction?: stri
     stream: false,
   } satisfies GenerateRequest;
 
-  //logOllamaRequest("/api/generate", requestBody);
+  logOllamaRequest("/api/generate", requestBody);
 
   const payload = await postOllamaJson<GenerateResponse>(
     "/api/generate",

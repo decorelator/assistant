@@ -43,6 +43,14 @@ let canStopGeneration = false;
 let assistantTranslateEnabled = false;
 let assistantTranslateHandler = null;
 
+function syncMessageIncludeCheckboxes() {
+  const includeCheckboxes = document.querySelectorAll("[data-message-include-checkbox]");
+
+  for (const checkbox of includeCheckboxes) {
+    checkbox.disabled = isBusyState;
+  }
+}
+
 function syncInstructionPresetControls() {
   if (instructionPresetSelect) {
     instructionPresetSelect.disabled = isBusyState || !hasInstructionPresets;
@@ -294,6 +302,29 @@ export function getSelectedRecentPromptIndex() {
   return value ? Number.parseInt(value, 10) : null;
 }
 
+export function getIncludedMessages() {
+  if (!messageList) {
+    return [];
+  }
+
+  return Array.from(messageList.querySelectorAll("[data-message-role]")).flatMap((item) => {
+    const checkbox = item.querySelector("[data-message-include-checkbox]");
+    const textElement = item.querySelector(".message-text");
+    const role = item.getAttribute("data-message-role") ?? "";
+    const text = textElement?.textContent?.trim() ?? "";
+
+    if (!(checkbox instanceof HTMLInputElement) || !checkbox.checked || !text) {
+      return [];
+    }
+
+    if (role !== "user" && role !== "assistant") {
+      return [];
+    }
+
+    return [{ role, text }];
+  });
+}
+
 export function renderMessage(role, text) {
   if (!messageList) {
     return;
@@ -303,18 +334,42 @@ export function renderMessage(role, text) {
 
   const item = document.createElement("li");
   item.className = `message ${role === "user" ? "message-user" : ""}`.trim();
+  item.setAttribute("data-message-role", role);
+  const isSelectableMessage = role === "user" || role === "assistant";
+  const headerElement = document.createElement("div");
+  headerElement.className = "message-header";
   const roleElement = document.createElement("span");
   roleElement.className = "message-role";
   roleElement.textContent = role;
+  headerElement.appendChild(roleElement);
+
+  if (isSelectableMessage) {
+    const includeLabel = document.createElement("label");
+    includeLabel.className = "message-include-toggle";
+
+    const includeCheckbox = document.createElement("input");
+    includeCheckbox.type = "checkbox";
+    includeCheckbox.className = "message-include-checkbox";
+    includeCheckbox.disabled = isBusyState;
+    includeCheckbox.setAttribute("data-message-include-checkbox", "");
+    includeCheckbox.setAttribute("aria-label", `Include ${role} message in next request`);
+
+    const includeText = document.createElement("span");
+    includeText.textContent = "Use";
+
+    includeLabel.appendChild(includeCheckbox);
+    includeLabel.appendChild(includeText);
+    headerElement.appendChild(includeLabel);
+  }
 
   const textElement = document.createElement("span");
   textElement.className = "message-text";
   textElement.textContent = text;
 
-  item.appendChild(roleElement);
+  item.appendChild(headerElement);
   item.appendChild(textElement);
 
-  if (role === "user" || role === "assistant") {
+  if (isSelectableMessage) {
     const actionsElement = document.createElement("div");
     actionsElement.className = "message-actions";
 
@@ -464,6 +519,7 @@ export function setBusy(isBusy, availableModelCount) {
 
   syncInstructionPresetControls();
   syncAssistantTranslateButtons();
+  syncMessageIncludeCheckboxes();
   syncStopButton();
 }
 

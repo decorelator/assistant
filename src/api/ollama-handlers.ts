@@ -11,6 +11,32 @@ const {
 } = require("../services/ollama");
 const { readPositiveInteger, readTrimmedString } = require("./request-utils");
 
+type SelectedMessage = {
+  role: "user" | "assistant";
+  text: string;
+};
+
+function readSelectedMessages(value: unknown): SelectedMessage[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.flatMap((entry) => {
+    if (!entry || typeof entry !== "object") {
+      return [];
+    }
+
+    const role = readTrimmedString((entry as { role?: unknown }).role);
+    const text = readTrimmedString((entry as { text?: unknown }).text);
+
+    if ((role !== "user" && role !== "assistant") || !text) {
+      return [];
+    }
+
+    return [{ role, text }];
+  });
+}
+
 async function handleModelsRequest(response: import("node:http").ServerResponse) {
   try {
     const models = await fetchModels();
@@ -33,6 +59,7 @@ async function handleMessageRequest(
       typeof body.presetId === "number" || typeof body.presetId === "string"
         ? readPositiveInteger(String(body.presetId))
         : null;
+    const selectedMessages = readSelectedMessages(body.selectedMessages);
     const effectiveInstruction = instruction || getDefaultInstruction().trim();
 
     if (!model || !prompt) {
@@ -40,7 +67,7 @@ async function handleMessageRequest(
       return;
     }
 
-    const reply = await generateMessage(model, prompt, effectiveInstruction);
+    const reply = await generateMessage(model, prompt, effectiveInstruction, selectedMessages);
 
     if (presetId) {
       touchInstructionPreset(presetId);

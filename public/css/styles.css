@@ -140,6 +140,13 @@ input {
   background: var(--surface-strong);
 }
 
+.message-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
 .message-role {
   display: block;
   font-size: 0.72rem;
@@ -147,6 +154,26 @@ input {
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--muted);
+}
+
+.message-include-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.message-include-checkbox {
+  width: 0.95rem;
+  min-height: 0.95rem;
+  padding: 0;
+  flex: 0 0 auto;
+  accent-color: var(--accent);
 }
 
 .message-text {
@@ -161,6 +188,7 @@ input {
 .message-actions {
   display: flex;
   justify-content: flex-end;
+  gap: 8px;
   margin-top: 10px;
 }
 
