@@ -1,12 +1,8 @@
-import {
-  createTranslatorModelOptions,
-  createTranslatorSystemMessageOptions,
-  findTranslatorSystemMessage,
-} from "./translator-data.js";
+import { createTranslatorModelOptions, createTranslatorSystemMessageOptions, findTranslatorSystemMessage } from "./translator-data.js";
 import { createTranslatorState } from "./translator-state.js";
 import { mountTranslatorTabUi } from "./translator-tab-ui.js";
 
-export function createTranslatorController({ setStatus }) {
+export function createTranslatorController({ onAppliedSelectionChange, setStatus }) {
   const state = createTranslatorState();
   const ui = mountTranslatorTabUi();
   let modelOptions = [];
@@ -30,6 +26,16 @@ export function createTranslatorController({ setStatus }) {
   }
 
   function buildAppliedSummary() {
+    const appliedSettings = getAppliedSettings();
+
+    if (!appliedSettings) {
+      return "";
+    }
+
+    return `Applied translator: ${appliedSettings.model} + ${appliedSettings.systemMessageLabel}`;
+  }
+
+  function getAppliedSettings() {
     const appliedSelection = state.getAppliedSelection();
     const systemMessage = findTranslatorSystemMessage(
       systemMessageOptions,
@@ -37,14 +43,20 @@ export function createTranslatorController({ setStatus }) {
     );
 
     if (!appliedSelection.model || !systemMessage) {
-      return "";
+      return null;
     }
 
-    return `Applied translator: ${appliedSelection.model} + ${systemMessage.label}`;
+    return {
+      instructionText: systemMessage.instructionText,
+      model: appliedSelection.model,
+      systemMessageId: systemMessage.id,
+      systemMessageLabel: systemMessage.label,
+    };
   }
 
   function syncUi() {
     const selection = normalizeSelection(ui.getSelection());
+    onAppliedSelectionChange?.(getAppliedSettings());
 
     ui.render({
       appliedSummary: buildAppliedSummary(),
@@ -90,6 +102,10 @@ export function createTranslatorController({ setStatus }) {
       ui.bindApply(handleApplyClick);
       ui.bindModelChange(handleSelectionChange);
       ui.bindSystemMessageChange(handleSelectionChange);
+    },
+    getAppliedSettings,
+    getSelectedModel() {
+      return normalizeSelection(ui.getSelection()).model;
     },
     initialize() {
       syncUi();

@@ -7,6 +7,7 @@ const {
   handleInstructionPresetUpdateRequest,
   handleMessageRequest,
   handleModelInfoRequest,
+  handleModelStopRequest,
   handleModelsRequest,
 } = require("../api/handlers");
 const { sendNotFound } = require("../lib/http");
@@ -57,6 +58,11 @@ async function handleRequest(
 
   if (url === "/api/model" && request.method === "POST") {
     await handleModelInfoRequest(request, response);
+    return;
+  }
+
+  if (url === "/api/model/stop" && request.method === "POST") {
+    await handleModelStopRequest(request, response);
     return;
   }
 

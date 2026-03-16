@@ -26,6 +26,14 @@ export async function loadModelInfo(model) {
   return typeof data.details === "string" ? data.details : "No model info available.";
 }
 
+export async function stopModel(model) {
+  return requestJson("/api/model/stop", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ model }),
+  });
+}
+
 export async function loadConfig() {
   return requestJson("/api/config");
 }

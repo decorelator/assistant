@@ -1,7 +1,7 @@
 const { getDefaultInstruction } = require("../config/env");
 const { touchInstructionPreset } = require("../db/instruction-presets");
 const { readJsonBody, sendJson } = require("../lib/http");
-const { fetchModels, fetchModelInfo, generateMessage } = require("../services/ollama");
+const { fetchModels, fetchModelInfo, generateMessage, unloadModel } = require("../services/ollama");
 const { readPositiveInteger, readTrimmedString } = require("./request-utils");
 
 async function handleModelsRequest(response: import("node:http").ServerResponse) {
@@ -67,8 +67,30 @@ async function handleModelInfoRequest(
   }
 }
 
+async function handleModelStopRequest(
+  request: import("node:http").IncomingMessage,
+  response: import("node:http").ServerResponse,
+) {
+  try {
+    const body = await readJsonBody(request);
+    const model = readTrimmedString(body.model);
+
+    if (!model) {
+      sendJson(response, 400, { error: "Model is required." });
+      return;
+    }
+
+    await unloadModel(model);
+    sendJson(response, 200, { stopped: true });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Could not stop model.";
+    sendJson(response, 502, { error: message });
+  }
+}
+
 module.exports = {
   handleMessageRequest,
   handleModelInfoRequest,
+  handleModelStopRequest,
   handleModelsRequest,
 };

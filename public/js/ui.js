@@ -33,6 +33,8 @@ const defaultPromptPlaceholder = promptInput?.getAttribute("placeholder") ?? "As
 let hasInstructionPresets = false;
 let instructionPresetSelectionEnabled = false;
 let isBusyState = false;
+let assistantTranslateEnabled = false;
+let assistantTranslateHandler = null;
 
 function syncInstructionPresetControls() {
   if (instructionPresetSelect) {
@@ -42,6 +44,14 @@ function syncInstructionPresetControls() {
   savePresetButton && (savePresetButton.disabled = isBusyState);
   updatePresetButton && (updatePresetButton.disabled = isBusyState || !instructionPresetSelectionEnabled);
   deletePresetButton && (deletePresetButton.disabled = isBusyState || !instructionPresetSelectionEnabled);
+}
+
+function syncAssistantTranslateButtons() {
+  const translateButtons = document.querySelectorAll("[data-message-translate-button]");
+
+  for (const button of translateButtons) {
+    button.disabled = isBusyState || !assistantTranslateEnabled;
+  }
 }
 
 function scrollPageToBottom() {
@@ -189,6 +199,11 @@ export function bindDeletePresetButton(handler) {
   deletePresetButton?.addEventListener("click", handler);
 }
 
+export function bindAssistantTranslate(handler) {
+  assistantTranslateHandler = handler;
+  syncAssistantTranslateButtons();
+}
+
 export function bindTabs() {
   for (const button of tabButtons) {
     button.addEventListener("click", () => {
@@ -285,6 +300,17 @@ export function renderMessage(role, text) {
       }
     });
 
+    const translateButton = document.createElement("button");
+    translateButton.type = "button";
+    translateButton.className = "button-secondary message-copy-button";
+    translateButton.textContent = "Translate";
+    translateButton.setAttribute("data-message-translate-button", "");
+    translateButton.disabled = isBusyState || !assistantTranslateEnabled;
+    translateButton.addEventListener("click", () => {
+      assistantTranslateHandler?.(text);
+    });
+
+    actionsElement.appendChild(translateButton);
     actionsElement.appendChild(copyButton);
     item.appendChild(actionsElement);
   }
@@ -394,6 +420,7 @@ export function setBusy(isBusy, availableModelCount) {
   }
 
   syncInstructionPresetControls();
+  syncAssistantTranslateButtons();
 }
 
 export function setDefaults(config) {
@@ -497,4 +524,9 @@ export function setStatus(text) {
   if (status) {
     status.textContent = text;
   }
+}
+
+export function setAssistantTranslateEnabled(isEnabled) {
+  assistantTranslateEnabled = isEnabled;
+  syncAssistantTranslateButtons();
 }

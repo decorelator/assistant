@@ -22,6 +22,11 @@ type GenerateResponse = {
   response?: string;
 };
 
+type UnloadRequest = {
+  model: string;
+  keep_alive: 0;
+};
+
 type ShowRequest = {
   model: string;
 };
@@ -35,10 +40,11 @@ type ShowResponse = {
 
 const DEFAULT_OLLAMA_URL = "http://127.0.0.1:11434";
 const DEFAULT_TIMEOUT_MS = 2500;
-const DEFAULT_NUM_GPU = 50;
+const DEFAULT_NUM_GPU = 32;
 const DEFAULT_KEEP_ALIVE = "20m";
 const GENERATE_TIMEOUT_MS = 180000;
 const MODEL_INFO_TIMEOUT_MS = 20000;
+const UNLOAD_TIMEOUT_MS = 10000;
 
 async function fetchModels() {
   const payload = await requestOllamaJson<OllamaTagsResponse>(
@@ -84,6 +90,15 @@ async function fetchModelInfo(model: string) {
     "Could not load model info from Ollama.",
   );
   return formatModelInfo(model, payload);
+}
+
+async function unloadModel(model: string) {
+  await postOllamaJson(
+    "/api/generate",
+    UNLOAD_TIMEOUT_MS,
+    { model, keep_alive: 0 } satisfies UnloadRequest,
+    "Could not unload model from Ollama.",
+  );
 }
 
 function formatModelInfo(model: string, payload: ShowResponse) {
@@ -153,4 +168,4 @@ async function fetchWithTimeout(url: string, timeoutMs: number, options?: Reques
   }
 }
 
-module.exports = { fetchModels, fetchModelInfo, generateMessage };
+module.exports = { fetchModels, fetchModelInfo, generateMessage, unloadModel };
