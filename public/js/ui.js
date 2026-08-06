@@ -20,6 +20,7 @@ const deleteModelDialogConfirmButton = document.querySelector("[data-delete-mode
 const deleteModelDialogCopy = document.querySelector("[data-delete-model-dialog-copy]");
 const sendButton = document.querySelector("[data-send-button]");
 const stopButton = document.querySelector("[data-stop-button]");
+const startOllamaButton = document.querySelector("[data-start-ollama-button]");
 const infoButton = document.querySelector("[data-info-button]");
 const refreshModelsButton = document.querySelector("[data-refresh-models-button]");
 const currentInstructionName = document.querySelector("[data-current-instruction-name]");
@@ -206,6 +207,10 @@ export function bindDeleteModelDialogConfirm(handler) {
 
 export function bindInfoButton(handler) {
   infoButton?.addEventListener("click", handler);
+}
+
+export function bindStartOllamaButton(handler) {
+  startOllamaButton?.addEventListener("click", handler);
 }
 
 export function bindStopButton(handler) {
@@ -508,6 +513,7 @@ export function setBusy(isBusy, availableModelCount) {
   deleteModelButton && (deleteModelButton.disabled = isBusy || availableModelCount === 0);
   sendButton && (sendButton.disabled = isBusy);
   infoButton && (infoButton.disabled = isBusy);
+  startOllamaButton && (startOllamaButton.disabled = isBusy);
   refreshModelsButton && (refreshModelsButton.disabled = isBusy);
   recentPromptsSelect && (recentPromptsSelect.disabled = isBusy || recentPromptsSelect.options.length <= 1);
   promptInput && (promptInput.disabled = isBusy);

@@ -5,6 +5,7 @@ const {
   handleInstructionPresetDeleteRequest,
   handleInstructionPresetListRequest,
   handleInstructionPresetUpdateRequest,
+  handleOllamaStartRequest,
   handleMessageRequest,
   handleMessageStopRequest,
   handleModelDeleteRequest,
@@ -60,6 +61,11 @@ async function handleRequest(
 
   if (url === "/api/message/stop" && request.method === "POST") {
     handleMessageStopRequest(response);
+    return;
+  }
+
+  if (url === "/api/ollama/start" && request.method === "POST") {
+    await handleOllamaStartRequest(response);
     return;
   }
 

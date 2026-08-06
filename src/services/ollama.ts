@@ -1,3 +1,7 @@
+const fs = require("node:fs");
+const path = require("node:path");
+const { spawn } = require("node:child_process");
+
 type OllamaModel = {
   name?: string;
   size?: number;
@@ -55,6 +59,8 @@ const GENERATE_TIMEOUT_MS = 180000;
 const MODEL_INFO_TIMEOUT_MS = 20000;
 const UNLOAD_TIMEOUT_MS = 10000;
 const DELETE_TIMEOUT_MS = 30000;
+const START_TIMEOUT_MS = 15000;
+const START_POLL_INTERVAL_MS = 500;
 let activeGenerationController: AbortController | null = null;
 
 async function fetchModels() {
@@ -109,7 +115,7 @@ async function generateMessage(
     stream: false,
   } satisfies GenerateRequest;
 
-  logOllamaRequest("/api/generate", requestBody);
+  //logOllamaRequest("/api/generate", requestBody);
 
   const payload = await postOllamaJson<GenerateResponse>(
     "/api/generate",
@@ -157,6 +163,24 @@ async function deleteModel(model: string) {
   );
 }
 
+async function startOllama() {
+  if (await isOllamaReachable()) {
+    return {
+      alreadyRunning: true,
+      ready: true,
+      started: false,
+    };
+  }
+
+  await launchOllamaProcess();
+
+  return {
+    alreadyRunning: false,
+    ready: await waitForOllamaReady(START_TIMEOUT_MS),
+    started: true,
+  };
+}
+
 function stopActiveGeneration() {
   if (!activeGenerationController) {
     return false;
@@ -193,6 +217,175 @@ function logOllamaRequest(path: string, payload: unknown) {
   console.log(
     `[ollama] ${new Date().toISOString()} ${path}\n${JSON.stringify(payload, null, 2)}`,
   );
+}
+
+function getOllamaExecutable() {
+  return process.env.OLLAMA_EXECUTABLE?.trim() || "ollama";
+}
+
+function getOllamaLaunchMode() {
+  return process.env.OLLAMA_LAUNCH_MODE?.trim().toLowerCase() === "app" ? "app" : "serve";
+}
+
+async function isOllamaReachable() {
+  try {
+    await requestOllamaJson<OllamaTagsResponse>(
+      "/api/tags",
+      DEFAULT_TIMEOUT_MS,
+      "Could not connect to Ollama.",
+    );
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function launchOllamaProcess() {
+  const { command, args, env, executableLabel } = getOllamaLaunchSpec();
+
+  await new Promise<void>((resolve, reject) => {
+    const child = spawn(command, args, {
+      detached: true,
+      env,
+      stdio: "ignore",
+      windowsHide: true,
+    });
+
+    child.once("error", (error: NodeJS.ErrnoException) => {
+      if (error.code === "ENOENT") {
+        reject(new Error(`Could not find the Ollama executable: ${executableLabel}`));
+        return;
+      }
+
+      reject(error);
+    });
+
+    child.once("spawn", () => {
+      child.unref();
+      resolve();
+    });
+  });
+}
+
+function getOllamaLaunchSpec() {
+  const configuredExecutable = getOllamaExecutable();
+  const resolvedExecutable = resolveExecutablePath(configuredExecutable);
+  const launchEnv = buildOllamaLaunchEnv(resolvedExecutable);
+
+  if (process.platform === "win32" && getOllamaLaunchMode() === "app") {
+    const appExecutable = getOllamaAppExecutable(resolvedExecutable);
+
+    if (appExecutable) {
+      return {
+        command: appExecutable,
+        args: [],
+        env: launchEnv,
+        executableLabel: appExecutable,
+      };
+    }
+  }
+
+  return {
+    command: configuredExecutable,
+    args: ["serve"],
+    env: launchEnv,
+    executableLabel: resolvedExecutable || configuredExecutable,
+  };
+}
+
+function buildOllamaLaunchEnv(resolvedExecutable: string | null) {
+  const env = { ...process.env } as NodeJS.ProcessEnv;
+
+  if (!env.OLLAMA_MODELS) {
+    const detectedModelsDirectory = detectOllamaModelsDirectory(resolvedExecutable);
+
+    if (detectedModelsDirectory) {
+      env.OLLAMA_MODELS = detectedModelsDirectory;
+    }
+  }
+
+  return env;
+}
+
+function detectOllamaModelsDirectory(resolvedExecutable: string | null) {
+  if (!resolvedExecutable) {
+    return null;
+  }
+
+  const installationModelsDirectory = path.join(path.dirname(resolvedExecutable), "models");
+
+  if (fs.existsSync(installationModelsDirectory)) {
+    return installationModelsDirectory;
+  }
+
+  const defaultModelsDirectory = path.join(process.env.USERPROFILE || "", ".ollama", "models");
+
+  if (defaultModelsDirectory && fs.existsSync(defaultModelsDirectory)) {
+    return defaultModelsDirectory;
+  }
+
+  return null;
+}
+
+function getOllamaAppExecutable(resolvedExecutable: string | null) {
+  if (!resolvedExecutable) {
+    return null;
+  }
+
+  const executableDirectory = path.dirname(resolvedExecutable);
+  const appExecutable = path.join(executableDirectory, "ollama app.exe");
+
+  return fs.existsSync(appExecutable) ? appExecutable : null;
+}
+
+function resolveExecutablePath(executable: string) {
+  const trimmedExecutable = executable.trim();
+
+  if (!trimmedExecutable) {
+    return null;
+  }
+
+  if (path.isAbsolute(trimmedExecutable) && fs.existsSync(trimmedExecutable)) {
+    return trimmedExecutable;
+  }
+
+  const pathEntries = (process.env.PATH || "").split(path.delimiter).filter(Boolean);
+  const candidateNames =
+    process.platform === "win32" && path.extname(trimmedExecutable) === ""
+      ? [`${trimmedExecutable}.exe`, `${trimmedExecutable}.cmd`, `${trimmedExecutable}.bat`]
+      : [trimmedExecutable];
+
+  for (const directory of pathEntries) {
+    for (const candidateName of candidateNames) {
+      const candidatePath = path.join(directory, candidateName);
+
+      if (fs.existsSync(candidatePath)) {
+        return candidatePath;
+      }
+    }
+  }
+
+  return null;
+}
+
+async function waitForOllamaReady(timeoutMs: number) {
+  const deadline = Date.now() + timeoutMs;
+
+  while (Date.now() < deadline) {
+    if (await isOllamaReachable()) {
+      return true;
+    }
+
+    await delay(START_POLL_INTERVAL_MS);
+  }
+
+  return false;
+}
+
+function delay(ms: number) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
 }
 
 async function postOllamaJson<ResponsePayload>(
@@ -276,6 +469,7 @@ module.exports = {
   fetchModels,
   fetchModelInfo,
   generateMessage,
+  startOllama,
   stopActiveGeneration,
   unloadModel,
 };

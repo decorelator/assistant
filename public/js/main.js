@@ -1,4 +1,12 @@
-import { deleteModel, loadModelInfo, loadModels, sendMessage, stopGeneration, stopModel } from "./api.js";
+import {
+  deleteModel,
+  loadModelInfo,
+  loadModels,
+  sendMessage,
+  startOllama,
+  stopGeneration,
+  stopModel,
+} from "./api.js";
 import { createInstructionController } from "./instructions.js";
 import { createPromptHistoryController } from "./prompt-history.js";
 import { createTranslatorController } from "./translator/translator-controller.js";
@@ -12,6 +20,7 @@ import {
   bindInfoButton,
   bindModelChange,
   bindRefreshModelsButton,
+  bindStartOllamaButton,
   bindStopButton,
   bindTabs,
   clearMessages,
@@ -139,6 +148,31 @@ async function handleInfoClick() {
   } catch (error) {
     renderModelInfo(error instanceof Error ? error.message : "Could not load model info");
     setStatus("Model info failed");
+  } finally {
+    updateBusyState(false);
+  }
+}
+
+async function handleStartOllamaClick() {
+  const preferredModel = getSelectedModel();
+
+  updateBusyState(true);
+  setStatus("Starting Ollama...");
+
+  try {
+    const result = await startOllama();
+    setStatus(result?.message || "Ollama start request sent.");
+
+    if (result?.ready) {
+      await initializeModels(preferredModel);
+      return;
+    }
+
+    renderModelInfo(result?.message || "Ollama is starting. Refresh models in a moment.");
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Could not start Ollama.";
+    renderModelInfo(message);
+    setStatus(message);
   } finally {
     updateBusyState(false);
   }
@@ -298,7 +332,7 @@ async function initializeModels(preferredModel = "") {
     renderModelOptions([]);
     translatorController.updateAvailableModels([]);
     setCurrentModelName("Not available");
-    renderModelInfo("Could not load model info.");
+    renderModelInfo("Could not load model info. Start Ollama and refresh the models list.");
     setStatus(error instanceof Error ? error.message : "Could not load models");
   } finally {
     updateBusyState(false);
@@ -324,6 +358,7 @@ bindDeleteModelDialogConfirm(handleDeleteModelConfirm);
 bindInfoButton(handleInfoClick);
 bindModelChange(handleModelChange);
 bindRefreshModelsButton(initializeModels);
+bindStartOllamaButton(handleStartOllamaClick);
 bindStopButton(handleStopClick);
 bindTabs();
 instructionController.bindEvents();

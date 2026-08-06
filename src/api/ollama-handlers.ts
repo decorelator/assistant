@@ -6,6 +6,7 @@ const {
   fetchModels,
   fetchModelInfo,
   generateMessage,
+  startOllama,
   stopActiveGeneration,
   unloadModel,
 } = require("../services/ollama");
@@ -148,11 +149,30 @@ async function handleModelDeleteRequest(
   }
 }
 
+async function handleOllamaStartRequest(response: import("node:http").ServerResponse) {
+  try {
+    const result = await startOllama();
+
+    sendJson(response, 200, {
+      ...result,
+      message: result.alreadyRunning
+        ? "Ollama is already running."
+        : result.ready
+          ? "Ollama started successfully."
+          : "Ollama launch was triggered, but the server is not responding yet.",
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Could not start Ollama.";
+    sendJson(response, 500, { error: message });
+  }
+}
+
 function handleMessageStopRequest(response: import("node:http").ServerResponse) {
   sendJson(response, 200, { stopped: stopActiveGeneration() });
 }
 
 module.exports = {
+  handleOllamaStartRequest,
   handleMessageRequest,
   handleModelDeleteRequest,
   handleMessageStopRequest,

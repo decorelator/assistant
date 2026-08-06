@@ -26,6 +26,12 @@ export async function loadModelInfo(model) {
   return typeof data.details === "string" ? data.details : "No model info available.";
 }
 
+export async function startOllama() {
+  return requestJson("/api/ollama/start", {
+    method: "POST",
+  });
+}
+
 export async function deleteModel(model) {
   return requestJson("/api/model", {
     method: "DELETE",
