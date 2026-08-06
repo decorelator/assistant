@@ -330,7 +330,7 @@ export function getIncludedMessages() {
   });
 }
 
-export function renderMessage(role, text) {
+export function renderMessage(role, text, metadata = {}) {
   if (!messageList) {
     return;
   }
@@ -343,10 +343,35 @@ export function renderMessage(role, text) {
   const isSelectableMessage = role === "user" || role === "assistant";
   const headerElement = document.createElement("div");
   headerElement.className = "message-header";
+  const roleMetaElement = document.createElement("div");
+  roleMetaElement.className = "message-heading";
   const roleElement = document.createElement("span");
   roleElement.className = "message-role";
   roleElement.textContent = role;
-  headerElement.appendChild(roleElement);
+  roleMetaElement.appendChild(roleElement);
+
+  if (role === "assistant") {
+    const detailParts = [];
+
+    if (typeof metadata.modelName === "string" && metadata.modelName.trim()) {
+      item.setAttribute("data-message-model", metadata.modelName);
+      detailParts.push(`Model: ${metadata.modelName}`);
+    }
+
+    if (typeof metadata.instructionName === "string" && metadata.instructionName.trim()) {
+      item.setAttribute("data-message-instruction-name", metadata.instructionName);
+      detailParts.push(`Instruction: ${metadata.instructionName}`);
+    }
+
+    if (detailParts.length > 0) {
+      const detailsElement = document.createElement("span");
+      detailsElement.className = "message-details";
+      detailsElement.textContent = detailParts.join(" | ");
+      roleMetaElement.appendChild(detailsElement);
+    }
+  }
+
+  headerElement.appendChild(roleMetaElement);
 
   if (isSelectableMessage) {
     const includeLabel = document.createElement("label");

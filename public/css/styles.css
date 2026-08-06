@@ -147,6 +147,11 @@ input {
   gap: 10px;
 }
 
+.message-heading {
+  display: grid;
+  gap: 3px;
+}
+
 .message-role {
   display: block;
   font-size: 0.72rem;
@@ -154,6 +159,14 @@ input {
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--muted);
+}
+
+.message-details {
+  display: block;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: var(--muted);
+  word-break: break-word;
 }
 
 .message-include-toggle {

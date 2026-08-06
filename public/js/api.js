@@ -96,5 +96,9 @@ export async function sendMessage(model, prompt, instruction, presetId = null, s
     body: JSON.stringify({ model, prompt, instruction, presetId, selectedMessages }),
   });
 
-  return typeof data.response === "string" ? data.response : "";
+  return {
+    instruction: typeof data.instruction === "string" ? data.instruction : instruction,
+    model: typeof data.model === "string" ? data.model : model,
+    response: typeof data.response === "string" ? data.response : "",
+  };
 }

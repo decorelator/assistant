@@ -111,11 +111,15 @@ async function handleSubmit(event) {
 
   try {
     await tryStopModel(translatorModel, model);
+    const requestMetadata = {
+      instructionName: instructionController.getCurrentInstructionName(),
+      modelName: model,
+    };
     const reply = await sendMessage(model, prompt, instruction, selectedPresetId, includedMessages);
     if (selectedPresetId) {
       instructionController.markPresetAsUsed(selectedPresetId);
     }
-    renderMessage("assistant", reply || "No response from model.");
+    renderMessage("assistant", reply.response || "No response from model.", requestMetadata);
     setStatus(`Ready with ${model}`);
   } catch (error) {
     if (isGenerationStoppedError(error)) {
@@ -195,6 +199,10 @@ async function handleAssistantTranslate(sourceText) {
 
   try {
     await tryStopModel(getSelectedModel(), appliedTranslatorSettings.model);
+    const requestMetadata = {
+      instructionName: appliedTranslatorSettings.systemMessageLabel,
+      modelName: appliedTranslatorSettings.model,
+    };
     const reply = await sendMessage(
       appliedTranslatorSettings.model,
       sourceText,
@@ -202,7 +210,7 @@ async function handleAssistantTranslate(sourceText) {
       null,
       includedMessages,
     );
-    renderMessage("assistant", reply || "No response from model.");
+    renderMessage("assistant", reply.response || "No response from model.", requestMetadata);
     setStatus(`Translation ready with ${appliedTranslatorSettings.model}`);
   } catch (error) {
     if (isGenerationStoppedError(error)) {

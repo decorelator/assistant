@@ -241,6 +241,9 @@ export function createInstructionController({
 
   return {
     bindEvents,
+    getCurrentInstructionName() {
+      return getSelectedInstructionPreset()?.title ?? ".env fallback";
+    },
     getInstructionValue,
     getSelectedPresetId: () => selectedInstructionPresetId,
     initialize,

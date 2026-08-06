@@ -74,7 +74,11 @@ async function handleMessageRequest(
       touchInstructionPreset(presetId);
     }
 
-    sendJson(response, 200, { response: reply });
+    sendJson(response, 200, {
+      instruction: effectiveInstruction,
+      model,
+      response: reply,
+    });
   } catch (error) {
     if (error instanceof Error && error.message === "Generation stopped.") {
       sendJson(response, 499, { error: "Generation stopped." });
