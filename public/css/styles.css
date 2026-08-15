@@ -422,6 +422,16 @@ button:disabled {
   }
 }
 
+@media (max-width: 639px) {
+  .tab-panel[data-tab-name="msg"] .actions {
+    position: sticky;
+    bottom: 0;
+    z-index: 1;
+    padding: 8px 0 calc(8px + env(safe-area-inset-bottom));
+    background: var(--surface);
+  }
+}
+
 @media (max-width: 420px) {
   .tabs {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -429,5 +439,10 @@ button:disabled {
 
   .actions {
     flex-direction: column;
+  }
+
+  .tab-panel[data-tab-name="msg"] .actions {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }

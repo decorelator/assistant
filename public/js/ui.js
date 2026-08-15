@@ -373,6 +373,7 @@ export function renderMessage(role, text, metadata = {}) {
     const includeCheckbox = document.createElement("input");
     includeCheckbox.type = "checkbox";
     includeCheckbox.className = "message-include-checkbox";
+    includeCheckbox.checked = true;
     includeCheckbox.disabled = isBusyState;
     includeCheckbox.setAttribute("data-message-include-checkbox", "");
     includeCheckbox.setAttribute("aria-label", `Include ${role} message in next request`);
