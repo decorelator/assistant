@@ -9,6 +9,8 @@ const instructionInput = document.querySelector("[data-instruction]");
 const instructionPresetSelect = document.querySelector("[data-instruction-preset-select]");
 const instructionSource = document.querySelector("[data-instruction-source]");
 const promptInput = document.querySelector("[data-prompt]");
+const contextInput = document.querySelector("[data-context]");
+const directorInput = document.querySelector("[data-director]");
 const recentPromptsSelect = document.querySelector("[data-recent-prompts-select]");
 const clearButton = document.querySelector("[data-clear-button]");
 const deleteDialog = document.querySelector("[data-delete-preset-dialog]");
@@ -170,6 +172,10 @@ export function bindChatForm(handler) {
   chatForm?.addEventListener("submit", handler);
 }
 
+export function bindContextChange(handler) {
+  contextInput?.addEventListener("input", handler);
+}
+
 export function bindClearButton(handler) {
   clearButton?.addEventListener("click", handler);
 }
@@ -282,6 +288,26 @@ export function getPromptValue() {
   return promptInput?.value?.trim() ?? "";
 }
 
+export function getDirectorValue() {
+  return directorInput?.value?.trim() ?? "";
+}
+
+export function getContextValue() {
+  return contextInput?.value?.trim() ?? "";
+}
+
+export function setContextValue(value) {
+  if (contextInput) {
+    contextInput.value = typeof value === "string" ? value : "";
+  }
+}
+
+export function clearDirectorValue() {
+  if (directorInput) {
+    directorInput.value = "";
+  }
+}
+
 export function getPresetTitleValue() {
   return presetTitleInput?.value?.trim() ?? "";
 }
@@ -298,6 +324,40 @@ export function getSelectedInstructionPresetId() {
 export function getSelectedRecentPromptIndex() {
   const value = recentPromptsSelect?.value?.trim() ?? "";
   return value ? Number.parseInt(value, 10) : null;
+}
+
+export function bindMessageIncludeChange(handler) {
+  messageList?.addEventListener("change", (event) => {
+    if (event.target instanceof HTMLInputElement && event.target.matches("[data-message-include-checkbox]")) {
+      handler();
+    }
+  });
+}
+
+export function getMessagesForStorage() {
+  if (!messageList) {
+    return [];
+  }
+
+  return Array.from(messageList.querySelectorAll("[data-message-role]")).flatMap((item) => {
+    const role = item.getAttribute("data-message-role") ?? "";
+    const text = item.querySelector(".message-text")?.getAttribute("data-message-raw-text") ?? "";
+    const checkbox = item.querySelector("[data-message-include-checkbox]");
+
+    if ((role !== "user" && role !== "assistant") || !text) {
+      return [];
+    }
+
+    return [{
+      role,
+      text,
+      metadata: {
+        modelName: item.getAttribute("data-message-model") ?? undefined,
+        instructionName: item.getAttribute("data-message-instruction-name") ?? undefined,
+        included: checkbox instanceof HTMLInputElement ? checkbox.checked : true,
+      },
+    }];
+  });
 }
 
 export function getIncludedMessages() {
@@ -373,7 +433,7 @@ export function renderMessage(role, text, metadata = {}) {
     const includeCheckbox = document.createElement("input");
     includeCheckbox.type = "checkbox";
     includeCheckbox.className = "message-include-checkbox";
-    includeCheckbox.checked = true;
+    includeCheckbox.checked = metadata.included !== false;
     includeCheckbox.disabled = isBusyState;
     includeCheckbox.setAttribute("data-message-include-checkbox", "");
     includeCheckbox.setAttribute("aria-label", `Include ${role} message in next request`);
@@ -537,6 +597,8 @@ export function setBusy(isBusy, availableModelCount) {
   refreshModelsButton && (refreshModelsButton.disabled = isBusy);
   recentPromptsSelect && (recentPromptsSelect.disabled = isBusy || recentPromptsSelect.options.length <= 1);
   promptInput && (promptInput.disabled = isBusy);
+  contextInput && (contextInput.disabled = isBusy);
+  directorInput && (directorInput.disabled = isBusy);
   instructionInput && (instructionInput.disabled = isBusy);
 
   if (modelSelect) {

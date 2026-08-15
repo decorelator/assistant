@@ -48,6 +48,14 @@ export async function stopModel(model) {
   });
 }
 
+export async function releaseOtherModels(model) {
+  return requestJson("/api/models/release-others", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ model }),
+  });
+}
+
 export async function stopGeneration() {
   return requestJson("/api/message/stop", {
     method: "POST",
@@ -89,11 +97,19 @@ export async function deleteInstructionPreset(id) {
   });
 }
 
-export async function sendMessage(model, prompt, instruction, presetId = null, selectedMessages = []) {
+export async function sendMessage(
+  model,
+  prompt,
+  instruction,
+  presetId = null,
+  selectedMessages = [],
+  director = "",
+  context = "",
+) {
   const data = await requestJson("/api/message", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ model, prompt, instruction, presetId, selectedMessages }),
+    body: JSON.stringify({ model, prompt, instruction, presetId, selectedMessages, director, context }),
   });
 
   return {

@@ -35,6 +35,7 @@ function isValidationError(error) {
 
 export function createInstructionController({
   onInstructionNameChange,
+  onInstructionPresetChange,
   onPresetsChange,
   setBusy,
   setStatus,
@@ -70,6 +71,7 @@ export function createInstructionController({
     selectedInstructionPresetId = null;
     setInstructionValue(fallbackInstruction);
     syncInstructionPresetUi();
+    onInstructionPresetChange?.(null);
   }
 
   function loadInstructionPresetById(presetId) {
@@ -83,6 +85,7 @@ export function createInstructionController({
     selectedInstructionPresetId = preset.id;
     setInstructionValue(preset.instructionText ?? "");
     syncInstructionPresetUi();
+    onInstructionPresetChange?.(preset.id);
   }
 
   function applyInstructionPresets(presets, presetIdToSelect = null) {
@@ -226,11 +229,11 @@ export function createInstructionController({
     bindUpdatePresetButton(handleUpdatePresetClick);
   }
 
-  async function initialize() {
+  async function initialize(preferredPresetId = null) {
     try {
       const [config, presets] = await Promise.all([loadConfig(), loadInstructionPresets()]);
       fallbackInstruction = typeof config.defaultInstruction === "string" ? config.defaultInstruction : "";
-      applyInstructionPresets(presets);
+      applyInstructionPresets(presets, preferredPresetId);
       return config;
     } catch {
       fallbackInstruction = "";

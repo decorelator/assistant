@@ -11,6 +11,10 @@ type OllamaTagsResponse = {
   models?: OllamaModel[];
 };
 
+type OllamaProcessResponse = {
+  models?: OllamaModel[];
+};
+
 type GenerateRequest = {
   model: string;
   prompt: string;
@@ -72,13 +76,32 @@ async function fetchModels() {
   return Array.isArray(payload.models) ? payload.models : [];
 }
 
+async function unloadOtherModels(activeModel: string) {
+  const payload = await requestOllamaJson<OllamaProcessResponse>(
+    "/api/ps",
+    DEFAULT_TIMEOUT_MS,
+    "Could not inspect loaded Ollama models.",
+  );
+  const loadedModels = Array.isArray(payload.models) ? payload.models : [];
+
+  for (const model of loadedModels) {
+    if (model.name && model.name !== activeModel) {
+      await unloadModel(model.name);
+    }
+  }
+}
+
 function getBaseUrl() {
   return (process.env.OLLAMA_BASE_URL?.trim() || DEFAULT_OLLAMA_URL).replace(/\/+$/, "");
 }
 
-function buildPrompt(prompt: string, selectedMessages: SelectedMessage[]) {
+function buildPrompt(prompt: string, selectedMessages: SelectedMessage[], director = "", context = "") {
+  const contextInstruction = context ? `[CONTEXT: ${context}]` : "";
+  const directorInstruction = director ? `[DIRECTOR: ${director}]` : "";
+  const currentRequest = [directorInstruction, prompt].filter(Boolean).join("\n\n");
+
   if (selectedMessages.length === 0) {
-    return prompt;
+    return [contextInstruction, currentRequest].filter(Boolean).join("\n\n");
   }
 
   const conversationContext = selectedMessages
@@ -86,14 +109,11 @@ function buildPrompt(prompt: string, selectedMessages: SelectedMessage[]) {
     .join("\n\n");
 
   return [
+    contextInstruction,
     "Use the selected conversation context below when it helps answer the current user message.",
-    "",
-    "Selected conversation context:",
-    conversationContext,
-    "",
-    "Current user message:",
-    prompt,
-  ].join("\n");
+    `Selected conversation context:\n${conversationContext}`,
+    `Current user message:\n${currentRequest}`,
+  ].filter(Boolean).join("\n\n");
 }
 
 async function generateMessage(
@@ -101,12 +121,14 @@ async function generateMessage(
   prompt: string,
   instruction?: string,
   selectedMessages: SelectedMessage[] = [],
+  director = "",
+  context = "",
 ) {
   const generationController = new AbortController();
   activeGenerationController = generationController;
   const requestBody = {
     model,
-    prompt: buildPrompt(prompt, selectedMessages),
+    prompt: buildPrompt(prompt, selectedMessages, director, context),
     system: instruction ?? "",
     keep_alive: DEFAULT_KEEP_ALIVE,
     options: {
@@ -472,4 +494,5 @@ module.exports = {
   startOllama,
   stopActiveGeneration,
   unloadModel,
+  unloadOtherModels,
 };

@@ -77,6 +77,26 @@
       data-prompt
       placeholder="Ask something..."
     ></textarea>
+    <div class="field">
+      <label class="label" for="context">Context <span>(optional)</span></label>
+      <textarea
+        id="context"
+        name="context"
+        class="context-input"
+        data-context
+        placeholder="Describe the setting, important objects, and the characters' current state..."
+      ></textarea>
+    </div>
+    <div class="field">
+      <label class="label director-label" for="director">Director <span>(optional)</span></label>
+      <textarea
+        id="director"
+        name="director"
+        class="director-input"
+        data-director
+        placeholder="Set the scene direction for this reply..."
+      ></textarea>
+    </div>
     <div class="actions">
       <button type="button" class="button-secondary" data-clear-button>Clear</button>
       <button type="button" class="button-secondary" data-stop-button disabled>Stop</button>

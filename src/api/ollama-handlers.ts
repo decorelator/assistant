@@ -9,6 +9,7 @@ const {
   startOllama,
   stopActiveGeneration,
   unloadModel,
+  unloadOtherModels,
 } = require("../services/ollama");
 const { readPositiveInteger, readTrimmedString } = require("./request-utils");
 
@@ -56,6 +57,8 @@ async function handleMessageRequest(
     const model = readTrimmedString(body.model);
     const prompt = readTrimmedString(body.prompt);
     const instruction = readTrimmedString(body.instruction);
+    const director = readTrimmedString(body.director);
+    const context = readTrimmedString(body.context);
     const presetId =
       typeof body.presetId === "number" || typeof body.presetId === "string"
         ? readPositiveInteger(String(body.presetId))
@@ -68,7 +71,7 @@ async function handleMessageRequest(
       return;
     }
 
-    const reply = await generateMessage(model, prompt, effectiveInstruction, selectedMessages);
+    const reply = await generateMessage(model, prompt, effectiveInstruction, selectedMessages, director, context);
 
     if (presetId) {
       touchInstructionPreset(presetId);
@@ -132,6 +135,27 @@ async function handleModelStopRequest(
   }
 }
 
+async function handleOtherModelsReleaseRequest(
+  request: import("node:http").IncomingMessage,
+  response: import("node:http").ServerResponse,
+) {
+  try {
+    const body = await readJsonBody(request);
+    const model = readTrimmedString(body.model);
+
+    if (!model) {
+      sendJson(response, 400, { error: "Model is required." });
+      return;
+    }
+
+    await unloadOtherModels(model);
+    sendJson(response, 200, { released: true });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Could not release other models.";
+    sendJson(response, 502, { error: message });
+  }
+}
+
 async function handleModelDeleteRequest(
   request: import("node:http").IncomingMessage,
   response: import("node:http").ServerResponse,
@@ -182,5 +206,6 @@ module.exports = {
   handleMessageStopRequest,
   handleModelInfoRequest,
   handleModelStopRequest,
+  handleOtherModelsReleaseRequest,
   handleModelsRequest,
 };

@@ -2,6 +2,7 @@ import {
   deleteModel,
   loadModelInfo,
   loadModels,
+  releaseOtherModels as releaseOtherOllamaModels,
   sendMessage,
   startOllama,
   stopGeneration,
@@ -9,25 +10,41 @@ import {
 } from "./api.js";
 import { createInstructionController } from "./instructions.js";
 import { createPromptHistoryController } from "./prompt-history.js";
+import {
+  getSavedInstructionPresetId,
+  getLastUsedModel,
+  getSavedModel,
+  getSavedContext,
+  saveInstructionPresetId,
+  saveLastUsedModel,
+  saveModel,
+  saveContext,
+} from "./preferences.js";
 import { createTranslatorController } from "./translator/translator-controller.js";
 import {
   bindAssistantTranslate,
   bindChatForm,
+  bindContextChange,
   bindClearButton,
   bindDeleteModelButton,
   bindDeleteModelDialogCancel,
   bindDeleteModelDialogConfirm,
   bindInfoButton,
+  bindMessageIncludeChange,
   bindModelChange,
   bindRefreshModelsButton,
   bindStartOllamaButton,
   bindStopButton,
   bindTabs,
+  clearDirectorValue,
   clearMessages,
   closeDeleteModelDialog,
   focusPrompt,
   getSelectedModel,
   getIncludedMessages,
+  getContextValue,
+  getDirectorValue,
+  getMessagesForStorage,
   markMessagesAsStale,
   openDeleteModelDialog,
   renderMessage,
@@ -35,6 +52,7 @@ import {
   renderModelOptions,
   setCurrentInstructionName,
   setCurrentModelName,
+  setContextValue,
   setBusy,
   setDeleteModelDialogCopy,
   setDefaults,
@@ -43,12 +61,17 @@ import {
   setPromptValue,
   setStopEnabled,
 } from "./ui.js";
+import { clearChatHistory, loadChatHistory, saveChatHistory } from "./chat-history.js";
 
 let availableModels = [];
 const promptHistory = createPromptHistoryController();
+const savedModel = getSavedModel();
+const savedInstructionPresetId = getSavedInstructionPresetId();
 let appliedTranslatorSettings = null;
 let isGenerating = false;
 let pendingDeleteModel = "";
+let lastUsedModel = getLastUsedModel();
+let initializationPromise = Promise.resolve();
 const translatorController = createTranslatorController({
   onAppliedSelectionChange(settings) {
     appliedTranslatorSettings = settings;
@@ -56,6 +79,17 @@ const translatorController = createTranslatorController({
   },
   setStatus,
 });
+
+function renderAndSaveMessage(role, text, metadata = {}) {
+  renderMessage(role, text, metadata);
+  saveChatHistory(getMessagesForStorage());
+}
+
+function restoreChatHistory() {
+  for (const { role, text, metadata } of loadChatHistory()) {
+    renderMessage(role, text, metadata);
+  }
+}
 
 function updateBusyState(isBusy) {
   setBusy(isBusy, availableModels.length);
@@ -80,6 +114,7 @@ function endGeneration() {
 }
 const instructionController = createInstructionController({
   onInstructionNameChange: setCurrentInstructionName,
+  onInstructionPresetChange: saveInstructionPresetId,
   onPresetsChange: translatorController.updateSystemMessages,
   setBusy: updateBusyState,
   setStatus,
@@ -88,11 +123,15 @@ const instructionController = createInstructionController({
 async function handleSubmit(event) {
   event.preventDefault();
 
+  await initializationPromise;
+
   const model = getSelectedModel();
   const translatorModel = translatorController.getSelectedModel();
   const instruction = instructionController.getInstructionValue();
   const selectedPresetId = instructionController.getSelectedPresetId();
   const prompt = promptHistory.getPromptForSubmit();
+  const context = getContextValue();
+  const director = getDirectorValue();
   const includedMessages = getIncludedMessages();
 
   if (!model || !prompt) {
@@ -102,30 +141,41 @@ async function handleSubmit(event) {
 
   promptHistory.rememberSubmittedPrompt(prompt);
   markMessagesAsStale();
-  renderMessage("user", prompt);
+  renderAndSaveMessage("user", prompt);
   setPromptValue("");
+  clearDirectorValue();
 
   updateBusyState(true);
   beginGeneration();
   setStatus(`Sending to ${model}...`);
 
   try {
-    await tryStopModel(translatorModel, model);
+    await releaseOtherModels(model, translatorModel, lastUsedModel);
     const requestMetadata = {
       instructionName: instructionController.getCurrentInstructionName(),
       modelName: model,
     };
-    const reply = await sendMessage(model, prompt, instruction, selectedPresetId, includedMessages);
+    const reply = await sendMessage(
+      model,
+      prompt,
+      instruction,
+      selectedPresetId,
+      includedMessages,
+      director,
+      context,
+    );
+    lastUsedModel = model;
+    saveLastUsedModel(model);
     if (selectedPresetId) {
       instructionController.markPresetAsUsed(selectedPresetId);
     }
-    renderMessage("assistant", reply.response || "No response from model.", requestMetadata);
+    renderAndSaveMessage("assistant", reply.response || "No response from model.", requestMetadata);
     setStatus(`Ready with ${model}`);
   } catch (error) {
     if (isGenerationStoppedError(error)) {
       setStatus("Generation stopped.");
     } else {
-      renderMessage("assistant", error instanceof Error ? error.message : "Request failed");
+      renderAndSaveMessage("assistant", error instanceof Error ? error.message : "Request failed");
       setStatus("Message failed");
     }
   } finally {
@@ -183,6 +233,8 @@ async function handleStartOllamaClick() {
 }
 
 async function handleAssistantTranslate(sourceText) {
+  await initializationPromise;
+
   const includedMessages = getIncludedMessages();
 
   if (!appliedTranslatorSettings?.model) {
@@ -191,14 +243,14 @@ async function handleAssistantTranslate(sourceText) {
   }
 
   markMessagesAsStale();
-  renderMessage("user", sourceText);
+  renderAndSaveMessage("user", sourceText);
 
   updateBusyState(true);
   beginGeneration();
   setStatus(`Translating with ${appliedTranslatorSettings.model}...`);
 
   try {
-    await tryStopModel(getSelectedModel(), appliedTranslatorSettings.model);
+    await releaseOtherModels(appliedTranslatorSettings.model, getSelectedModel(), lastUsedModel);
     const requestMetadata = {
       instructionName: appliedTranslatorSettings.systemMessageLabel,
       modelName: appliedTranslatorSettings.model,
@@ -210,13 +262,15 @@ async function handleAssistantTranslate(sourceText) {
       null,
       includedMessages,
     );
-    renderMessage("assistant", reply.response || "No response from model.", requestMetadata);
+    lastUsedModel = appliedTranslatorSettings.model;
+    saveLastUsedModel(lastUsedModel);
+    renderAndSaveMessage("assistant", reply.response || "No response from model.", requestMetadata);
     setStatus(`Translation ready with ${appliedTranslatorSettings.model}`);
   } catch (error) {
     if (isGenerationStoppedError(error)) {
       setStatus("Generation stopped.");
     } else {
-      renderMessage("assistant", error instanceof Error ? error.message : "Translation failed");
+      renderAndSaveMessage("assistant", error instanceof Error ? error.message : "Translation failed");
       setStatus("Translation failed");
     }
   } finally {
@@ -259,8 +313,21 @@ async function tryStopModel(modelToStop, activeModel) {
   }
 }
 
+async function releaseOtherModels(activeModel, ...modelsToStop) {
+  await releaseOtherOllamaModels(activeModel);
+
+  const inactiveModels = [...new Set(modelsToStop)].filter(
+    (model) => model && model !== activeModel,
+  );
+
+  for (const model of inactiveModels) {
+    await tryStopModel(model, activeModel);
+  }
+}
+
 function handleClearClick() {
   clearMessages();
+  clearChatHistory();
   promptHistory.clear();
   setStatus("Messages cleared.");
   focusPrompt();
@@ -312,6 +379,7 @@ async function handleDeleteModelConfirm() {
 
 function handleModelChange() {
   const model = getSelectedModel();
+  saveModel(model);
   setCurrentModelName(model);
   renderModelInfo(model ? `Current model: ${model}` : "Select a model and tap Model info.");
 }
@@ -333,7 +401,7 @@ async function initializeModels(preferredModel = "") {
       availableModels = await loadModels();
     }
 
-    const fallbackModel = preferredModel || getSelectedModel();
+    const fallbackModel = preferredModel || savedModel || getSelectedModel();
     renderModelOptions(availableModels, fallbackModel);
     translatorController.updateAvailableModels(availableModels);
     const selectedModel = getSelectedModel();
@@ -360,7 +428,7 @@ async function initializeModels(preferredModel = "") {
 }
 
 async function initializeInstructions() {
-  const config = await instructionController.initialize();
+  const config = await instructionController.initialize(savedInstructionPresetId);
 
   if (config) {
     setDefaults(config);
@@ -370,12 +438,14 @@ async function initializeInstructions() {
 }
 
 bindChatForm(handleSubmit);
+bindContextChange(() => saveContext(getContextValue()));
 bindAssistantTranslate(handleAssistantTranslate);
 bindClearButton(handleClearClick);
 bindDeleteModelButton(handleDeleteModelClick);
 bindDeleteModelDialogCancel(handleDeleteModelCancel);
 bindDeleteModelDialogConfirm(handleDeleteModelConfirm);
 bindInfoButton(handleInfoClick);
+bindMessageIncludeChange(() => saveChatHistory(getMessagesForStorage()));
 bindModelChange(handleModelChange);
 bindRefreshModelsButton(initializeModels);
 bindStartOllamaButton(handleStartOllamaClick);
@@ -384,7 +454,9 @@ bindTabs();
 instructionController.bindEvents();
 promptHistory.bindEvents();
 translatorController.bindEvents();
+restoreChatHistory();
+setContextValue(getSavedContext());
 
 updateBusyState(true);
 translatorController.initialize();
-void Promise.all([initializeModels(), initializeInstructions()]);
+initializationPromise = Promise.all([initializeModels(), initializeInstructions()]);

@@ -16,6 +16,7 @@
   --danger: #882f2f;
   --on-danger: #fff6f4;
   --error: #a32626;
+  --director: #783fb3;
   --panel-gap: 12px;
 }
 
@@ -38,6 +39,7 @@
     --danger: #d46a6a;
     --on-danger: #2b1010;
     --error: #ffaaa4;
+    --director: #d7a7ff;
   }
 }
 
@@ -355,6 +357,21 @@ textarea {
 
 .instruction-input {
   min-height: 12rem;
+}
+
+.context-input {
+  min-height: 6rem;
+}
+
+.director-label,
+.director-label span,
+.director-input {
+  color: var(--director);
+}
+
+.director-input {
+  min-height: 5rem;
+  border-color: var(--director);
 }
 
 .instruction-source {
