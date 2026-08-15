@@ -1,3 +1,5 @@
+import { renderMessageMarkdown } from "./message-markdown.mjs";
+
 const modelSelect = document.querySelector("[data-model-select]");
 const modelInfo = document.querySelector("[data-model-info]");
 const messageList = document.querySelector("[data-message-list]");
@@ -164,15 +166,6 @@ export function renderSelectOptions(
   return true;
 }
 
-function escapeHtml(value) {
-  return String(value)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
-}
-
 export function bindChatForm(handler) {
   chatForm?.addEventListener("submit", handler);
 }
@@ -316,7 +309,7 @@ export function getIncludedMessages() {
     const checkbox = item.querySelector("[data-message-include-checkbox]");
     const textElement = item.querySelector(".message-text");
     const role = item.getAttribute("data-message-role") ?? "";
-    const text = textElement?.textContent?.trim() ?? "";
+    const text = textElement?.getAttribute("data-message-raw-text")?.trim() ?? "";
 
     if (!(checkbox instanceof HTMLInputElement) || !checkbox.checked || !text) {
       return [];
@@ -394,7 +387,8 @@ export function renderMessage(role, text, metadata = {}) {
 
   const textElement = document.createElement("span");
   textElement.className = "message-text";
-  textElement.textContent = text;
+  textElement.setAttribute("data-message-raw-text", text);
+  textElement.innerHTML = renderMessageMarkdown(text);
 
   item.appendChild(headerElement);
   item.appendChild(textElement);
