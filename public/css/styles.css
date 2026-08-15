@@ -281,9 +281,6 @@ input {
 
 .message-text em {
   color: var(--emphasis);
-  font-weight: 600;
-  background: var(--accent-soft);
-  padding: 0 0.15em;
 }
 
 .message-text hr {
