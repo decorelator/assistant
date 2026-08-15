@@ -320,7 +320,19 @@ async function initializeModels(preferredModel = "") {
   setStatus("Loading models...");
 
   try {
-    availableModels = await loadModels();
+    try {
+      availableModels = await loadModels();
+    } catch {
+      setStatus("Ollama is unavailable. Starting it...");
+      const result = await startOllama();
+
+      if (!result?.ready) {
+        throw new Error(result?.message || "Ollama did not become ready.");
+      }
+
+      availableModels = await loadModels();
+    }
+
     const fallbackModel = preferredModel || getSelectedModel();
     renderModelOptions(availableModels, fallbackModel);
     translatorController.updateAvailableModels(availableModels);
