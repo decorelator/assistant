@@ -29,8 +29,6 @@ const reviewDialog = document.querySelector("[data-review-dialog]");
 const reviewApproveButton = document.querySelector("[data-review-approve-button]");
 const reviewCancelButton = document.querySelector("[data-review-cancel-button]");
 const reviewRegenerateButton = document.querySelector("[data-review-regenerate-button]");
-const reviewPreviousRole = document.querySelector("[data-review-previous-role]");
-const reviewPreviousText = document.querySelector("[data-review-previous-text]");
 const reviewCurrentText = document.querySelector("[data-review-current-text]");
 const reviewDraftRole = document.querySelector("[data-review-draft-role]");
 const reviewDraftText = document.querySelector("[data-review-draft-text]");
@@ -888,16 +886,6 @@ export function setReviewBusy(isBusy) {
 }
 
 export function renderReviewDialogContent(review) {
-  if (reviewPreviousRole) {
-    reviewPreviousRole.textContent = review.previous?.role ?? "None yet";
-  }
-
-  if (reviewPreviousText) {
-    reviewPreviousText.innerHTML = review.previous?.text
-      ? renderMessageMarkdown(review.previous.text)
-      : "No approved messages yet.";
-  }
-
   if (reviewCurrentText) {
     reviewCurrentText.innerHTML = renderMessageMarkdown(review.current);
   }

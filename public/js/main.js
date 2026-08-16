@@ -39,7 +39,6 @@ import {
   getContextValue,
   getDirectorValue,
   getMessagesForStorage,
-  getLastMessage,
   markMessagesAsStale,
   openReviewDialog,
   openDeleteModelDialog,
@@ -140,7 +139,6 @@ function buildPendingReview() {
     context,
     director,
     includedMessages,
-    previousMessage: getLastMessage(),
     requestMetadata: {
       instructionName: instructionController.getCurrentInstructionName(),
       modelName: model,
@@ -182,7 +180,6 @@ async function generateReviewDraft() {
 
     pendingReview.reply = reply.response || "No response from model.";
     renderReviewDialogContent({
-      previous: pendingReview.previousMessage,
       current: pendingReview.prompt,
       draft: pendingReview.reply,
       draftRole: "assistant",
@@ -244,7 +241,6 @@ async function regeneratePendingReview() {
   setReviewBusy(true);
   pendingReview.reply = "";
   renderReviewDialogContent({
-    previous: pendingReview.previousMessage,
     current: pendingReview.prompt,
     draft: "",
     draftRole: "assistant",
