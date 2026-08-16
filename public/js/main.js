@@ -21,6 +21,7 @@ import {
   bindInfoButton,
   bindMessageIncludeChange,
   bindModelChange,
+  bindPromptSubmitShortcut,
   bindReviewApprove,
   bindReviewCancel,
   bindReviewRegenerate,
@@ -83,9 +84,14 @@ function renderAndSaveMessage(role, text, metadata = {}) {
 }
 
 function restoreChatHistory() {
+  let lastUserPrompt = "";
+
   for (const { role, text, metadata } of loadChatHistory()) {
     renderMessage(role, text, metadata);
+    if (role === "user" && text.trim()) lastUserPrompt = text.trim();
   }
+
+  return lastUserPrompt;
 }
 
 function updateBusyState(isBusy) {
@@ -223,14 +229,12 @@ function approvePendingReview() {
   closeReviewDialog();
   setStatus(`Approved reply from ${pendingReview.model}.`);
   clearPendingReview();
-  focusPrompt();
 }
 
 function cancelPendingReview() {
   closeReviewDialog();
   clearPendingReview();
   setStatus("Draft discarded.");
-  focusPrompt();
 }
 
 async function regeneratePendingReview() {
@@ -451,17 +455,37 @@ function handleModelChange() {
   modelController.select(model);
 }
 
+function handlePromptSubmitShortcut(event) {
+  if (
+    event.key !== "Enter" ||
+    event.shiftKey ||
+    event.altKey ||
+    event.ctrlKey ||
+    event.metaKey ||
+    event.isComposing
+  ) {
+    return;
+  }
+
+  event.preventDefault();
+  event.currentTarget?.form?.requestSubmit();
+}
+
 async function initializeInstructions() {
   const config = await instructionController.initialize(savedInstructionPresetId);
 
   if (config) {
-    setDefaults(config);
+    setDefaults({
+      ...config,
+      defaultPrompt: restoredPrompt || config.defaultPrompt,
+    });
   }
 
-  promptHistory.initialize();
+  promptHistory.initialize(restoredPrompt);
 }
 
 bindChatForm(handleSubmit);
+bindPromptSubmitShortcut(handlePromptSubmitShortcut);
 bindContextChange(() => saveContext(getContextValue()));
 bindAssistantTranslate(handleAssistantTranslate);
 bindClearButton(handleClearClick);
@@ -482,7 +506,7 @@ bindTabs();
 instructionController.bindEvents();
 promptHistory.bindEvents();
 translatorController.bindEvents();
-restoreChatHistory();
+const restoredPrompt = restoreChatHistory();
 setContextValue(getSavedContext());
 
 updateBusyState(true);

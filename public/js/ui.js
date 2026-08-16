@@ -222,6 +222,10 @@ export function bindChatForm(handler) {
   chatForm?.addEventListener("submit", handler);
 }
 
+export function bindPromptSubmitShortcut(handler) {
+  promptInput?.addEventListener("keydown", handler);
+}
+
 export function bindContextChange(handler) {
   contextInput?.addEventListener("input", handler);
 }

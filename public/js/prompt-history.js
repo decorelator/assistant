@@ -83,7 +83,14 @@ export function createPromptHistoryController() {
     syncRecentPrompts();
   }
 
-  function initialize() {
+  function initialize(initialPrompt = "") {
+    const normalizedPrompt = typeof initialPrompt === "string" ? initialPrompt.trim() : "";
+
+    if (normalizedPrompt) {
+      lastSubmittedPrompt = normalizedPrompt;
+      recentPrompts = [normalizedPrompt];
+    }
+
     syncPromptHint();
     syncRecentPrompts();
   }
