@@ -48,6 +48,58 @@ let canStopGeneration = false;
 let assistantTranslateEnabled = false;
 let assistantTranslateHandler = null;
 
+function getKeyboardInset() {
+  const viewport = window.visualViewport;
+
+  if (!viewport) {
+    return 0;
+  }
+
+  return Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop);
+}
+
+function syncKeyboardInset() {
+  document.documentElement.style.setProperty("--keyboard-inset", `${getKeyboardInset()}px`);
+}
+
+function keepFocusedFieldVisible() {
+  const activeElement = document.activeElement;
+
+  if (!(activeElement instanceof HTMLTextAreaElement || activeElement instanceof HTMLInputElement)) {
+    return;
+  }
+
+  const viewport = window.visualViewport;
+  const visibleBottom = viewport ? viewport.offsetTop + viewport.height : window.innerHeight;
+  const margin = 16;
+  const fieldBounds = activeElement.getBoundingClientRect();
+  const overlap = fieldBounds.bottom - (visibleBottom - margin);
+
+  if (overlap > 0) {
+    window.scrollBy({ top: overlap, behavior: "auto" });
+  }
+}
+
+function installMobileKeyboardHandling() {
+  const scheduleViewportSync = () => {
+    syncKeyboardInset();
+    requestAnimationFrame(keepFocusedFieldVisible);
+  };
+
+  window.visualViewport?.addEventListener("resize", scheduleViewportSync);
+  window.visualViewport?.addEventListener("scroll", scheduleViewportSync);
+  window.addEventListener("orientationchange", scheduleViewportSync);
+  document.addEventListener("focusin", () => {
+    scheduleViewportSync();
+    window.setTimeout(scheduleViewportSync, 250);
+    window.setTimeout(scheduleViewportSync, 600);
+  });
+  window.addEventListener("pageshow", scheduleViewportSync);
+  syncKeyboardInset();
+}
+
+installMobileKeyboardHandling();
+
 function syncMessageIncludeCheckboxes() {
   const includeCheckboxes = document.querySelectorAll("[data-message-include-checkbox]");
 
