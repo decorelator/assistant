@@ -4,13 +4,22 @@ const { launchOllamaProcess } = require("./process-launcher");
 import type { GenerateRequest, GenerateResponse, OllamaProcessResponse, OllamaTagsResponse, SelectedMessage, ShowResponse } from "./types";
 
 const DEFAULT_TIMEOUT_MS = 2500;
-const DEFAULT_KEEP_ALIVE = "20m";
+const DEFAULT_KEEP_ALIVE = -1;
 const GENERATE_TIMEOUT_MS = 180000;
 const MODEL_INFO_TIMEOUT_MS = 20000;
 const UNLOAD_TIMEOUT_MS = 10000;
 const DELETE_TIMEOUT_MS = 30000;
 const START_TIMEOUT_MS = 15000;
+const START_CHECK_ATTEMPTS = 2;
+const START_CHECK_INTERVAL_MS = 500;
 let activeGenerationController: AbortController | null = null;
+
+function getKeepAlive() {
+  const configuredValue = process.env.OLLAMA_KEEP_ALIVE?.trim();
+  if (!configuredValue) return DEFAULT_KEEP_ALIVE;
+  const numericValue = Number(configuredValue);
+  return Number.isFinite(numericValue) ? numericValue : configuredValue;
+}
 
 async function fetchModels() {
   const payload = await requestOllamaJson("/api/tags", DEFAULT_TIMEOUT_MS, "Could not load models from Ollama.") as OllamaTagsResponse;
@@ -22,7 +31,7 @@ async function generateMessage(model: string, prompt: string, instruction = "", 
   activeGenerationController = controller;
   const payload = await postOllamaJson("/api/generate", GENERATE_TIMEOUT_MS, {
     model, prompt: buildPrompt(prompt, selectedMessages, director, context), system: instruction,
-    keep_alive: DEFAULT_KEEP_ALIVE, options: { num_gpu: 9999 }, stream: false,
+    keep_alive: getKeepAlive(), options: { num_gpu: 9999 }, stream: false,
   } satisfies GenerateRequest, "Could not get a response from Ollama.", controller.signal).finally(() => {
     if (activeGenerationController === controller) activeGenerationController = null;
   }) as GenerateResponse;
@@ -61,8 +70,18 @@ async function isReachable() {
   try { await fetchModels(); return true; } catch { return false; }
 }
 
+async function waitForReachable(attempts: number, intervalMs: number) {
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    if (await isReachable()) return true;
+    if (attempt + 1 < attempts) await new Promise((resolve) => setTimeout(resolve, intervalMs));
+  }
+  return false;
+}
+
 async function startOllama() {
-  if (await isReachable()) return { alreadyRunning: true, ready: true, started: false };
+  if (await waitForReachable(START_CHECK_ATTEMPTS, START_CHECK_INTERVAL_MS)) {
+    return { alreadyRunning: true, ready: true, started: false };
+  }
   await launchOllamaProcess();
   const deadline = Date.now() + START_TIMEOUT_MS;
   while (Date.now() < deadline) {

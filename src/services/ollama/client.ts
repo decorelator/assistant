@@ -6,7 +6,16 @@ function getBaseUrl() {
 
 async function requestOllamaJson<ResponsePayload>(path: string, timeoutMs: number, errorMessage: string, options?: RequestInit) {
   const response = await fetchWithTimeout(`${getBaseUrl()}${path}`, timeoutMs, options);
-  if (!response.ok) throw new Error(errorMessage);
+  if (!response.ok) {
+    let ollamaError = "";
+    try {
+      const payload = await response.json() as { error?: unknown };
+      if (typeof payload.error === "string") ollamaError = payload.error.trim();
+    } catch {
+      // Some Ollama failures do not include a JSON response body.
+    }
+    throw new Error(ollamaError ? `${errorMessage} ${ollamaError}` : errorMessage);
+  }
   return (await response.json()) as ResponsePayload;
 }
 

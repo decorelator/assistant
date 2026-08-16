@@ -18,14 +18,7 @@ export function createModelController({ renderModelInfo, renderModelOptions, set
   async function initialize(preferredModel = "", getSelectedModel) {
     setStatus("Loading models...");
     try {
-      try {
-        availableModels = await loadModels();
-      } catch {
-        setStatus("Ollama is unavailable. Starting it...");
-        const result = await startOllama();
-        if (!result?.ready) throw new Error(result?.message || "Ollama did not become ready.");
-        availableModels = await loadModels();
-      }
+      availableModels = await loadModels();
       const fallbackModel = preferredModel || getSavedModel() || getSelectedModel();
       renderModelOptions(availableModels, fallbackModel);
       updateTranslatorModels(availableModels);

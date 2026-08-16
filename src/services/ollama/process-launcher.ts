@@ -40,7 +40,16 @@ async function launchOllamaProcess() {
   await new Promise<void>((resolve, reject) => {
     const child = spawn(command, args, { detached: true, env, stdio: "ignore", windowsHide: true });
     child.once("error", (error: NodeJS.ErrnoException) => reject(error.code === "ENOENT" ? new Error(`Could not find the Ollama executable: ${label}`) : error));
-    child.once("spawn", () => { child.unref(); resolve(); });
+    child.once("spawn", () => {
+      console.info(`[ollama] Started process ${child.pid ?? "unknown"}: ${label}${args.length ? ` ${args.join(" ")}` : ""}`);
+      child.once("exit", (code: number | null, signal: NodeJS.Signals | null) => {
+        if (code !== 0 || signal) {
+          console.warn(`[ollama] Process ${child.pid ?? "unknown"} exited (code: ${code ?? "none"}, signal: ${signal ?? "none"}).`);
+        }
+      });
+      child.unref();
+      resolve();
+    });
   });
 }
 
