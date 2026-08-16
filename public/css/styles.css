@@ -18,6 +18,7 @@
   --error: #a32626;
   --director: #783fb3;
   --panel-gap: 12px;
+  --keyboard-inset: 0px;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -50,6 +51,7 @@
 body {
   margin: 0;
   min-height: 100vh;
+  scroll-padding-bottom: calc(16px + var(--keyboard-inset) + env(safe-area-inset-bottom));
   font-family: "Segoe UI", Arial, sans-serif;
   background: var(--bg);
   color: var(--text);
@@ -474,9 +476,13 @@ button:disabled {
 }
 
 @media (max-width: 639px) {
+  main {
+    padding-bottom: calc(10px + var(--keyboard-inset) + env(safe-area-inset-bottom));
+  }
+
   .tab-panel[data-tab-name="msg"] .actions {
     position: sticky;
-    bottom: 0;
+    bottom: var(--keyboard-inset);
     z-index: 1;
     padding: 8px 0 calc(8px + env(safe-area-inset-bottom));
     background: var(--surface);
