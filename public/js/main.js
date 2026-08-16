@@ -1,23 +1,11 @@
-import {
-  deleteModel,
-  loadModelInfo,
-  loadModels,
-  releaseOtherModels as releaseOtherOllamaModels,
-  sendMessage,
-  startOllama,
-  stopGeneration,
-  stopModel,
-} from "./api.js";
+import { loadModelInfo, sendMessage, stopGeneration } from "./api.js";
+import { createModelController } from "./features/models/model-controller.js";
 import { createInstructionController } from "./instructions.js";
 import { createPromptHistoryController } from "./prompt-history.js";
 import {
   getSavedInstructionPresetId,
-  getLastUsedModel,
-  getSavedModel,
   getSavedContext,
   saveInstructionPresetId,
-  saveLastUsedModel,
-  saveModel,
   saveContext,
 } from "./preferences.js";
 import { createTranslatorController } from "./translator/translator-controller.js";
@@ -26,6 +14,7 @@ import {
   bindChatForm,
   bindContextChange,
   bindClearButton,
+  bindCopyChatButton,
   bindDeleteModelButton,
   bindDeleteModelDialogCancel,
   bindDeleteModelDialogConfirm,
@@ -42,6 +31,7 @@ import {
   focusPrompt,
   getSelectedModel,
   getIncludedMessages,
+  getChatTranscript,
   getContextValue,
   getDirectorValue,
   getMessagesForStorage,
@@ -53,6 +43,7 @@ import {
   setCurrentInstructionName,
   setCurrentModelName,
   setContextValue,
+  showChatCopied,
   setBusy,
   setDeleteModelDialogCopy,
   setDefaults,
@@ -63,14 +54,11 @@ import {
 } from "./ui.js";
 import { clearChatHistory, loadChatHistory, saveChatHistory } from "./chat-history.js";
 
-let availableModels = [];
 const promptHistory = createPromptHistoryController();
-const savedModel = getSavedModel();
 const savedInstructionPresetId = getSavedInstructionPresetId();
 let appliedTranslatorSettings = null;
 let isGenerating = false;
 let pendingDeleteModel = "";
-let lastUsedModel = getLastUsedModel();
 let initializationPromise = Promise.resolve();
 const translatorController = createTranslatorController({
   onAppliedSelectionChange(settings) {
@@ -92,7 +80,7 @@ function restoreChatHistory() {
 }
 
 function updateBusyState(isBusy) {
-  setBusy(isBusy, availableModels.length);
+  setBusy(isBusy, modelController.getAvailableModelCount());
   translatorController.setBusy(isBusy);
 }
 
@@ -118,6 +106,14 @@ const instructionController = createInstructionController({
   onPresetsChange: translatorController.updateSystemMessages,
   setBusy: updateBusyState,
   setStatus,
+});
+const modelController = createModelController({
+  renderModelInfo,
+  renderModelOptions,
+  setCurrentModelName,
+  setStatus,
+  setBusy: updateBusyState,
+  updateTranslatorModels: translatorController.updateAvailableModels,
 });
 
 async function handleSubmit(event) {
@@ -150,7 +146,7 @@ async function handleSubmit(event) {
   setStatus(`Sending to ${model}...`);
 
   try {
-    await releaseOtherModels(model, translatorModel, lastUsedModel);
+    await modelController.releaseInactiveModels(model, translatorModel, modelController.getLastUsedModel());
     const requestMetadata = {
       instructionName: instructionController.getCurrentInstructionName(),
       modelName: model,
@@ -164,8 +160,7 @@ async function handleSubmit(event) {
       director,
       context,
     );
-    lastUsedModel = model;
-    saveLastUsedModel(model);
+    modelController.markUsed(model);
     if (selectedPresetId) {
       instructionController.markPresetAsUsed(selectedPresetId);
     }
@@ -208,28 +203,7 @@ async function handleInfoClick() {
 }
 
 async function handleStartOllamaClick() {
-  const preferredModel = getSelectedModel();
-
-  updateBusyState(true);
-  setStatus("Starting Ollama...");
-
-  try {
-    const result = await startOllama();
-    setStatus(result?.message || "Ollama start request sent.");
-
-    if (result?.ready) {
-      await initializeModels(preferredModel);
-      return;
-    }
-
-    renderModelInfo(result?.message || "Ollama is starting. Refresh models in a moment.");
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Could not start Ollama.";
-    renderModelInfo(message);
-    setStatus(message);
-  } finally {
-    updateBusyState(false);
-  }
+  await modelController.start(getSelectedModel(), getSelectedModel);
 }
 
 async function handleAssistantTranslate(sourceText) {
@@ -250,7 +224,7 @@ async function handleAssistantTranslate(sourceText) {
   setStatus(`Translating with ${appliedTranslatorSettings.model}...`);
 
   try {
-    await releaseOtherModels(appliedTranslatorSettings.model, getSelectedModel(), lastUsedModel);
+    await modelController.releaseInactiveModels(appliedTranslatorSettings.model, getSelectedModel(), modelController.getLastUsedModel());
     const requestMetadata = {
       instructionName: appliedTranslatorSettings.systemMessageLabel,
       modelName: appliedTranslatorSettings.model,
@@ -262,8 +236,7 @@ async function handleAssistantTranslate(sourceText) {
       null,
       includedMessages,
     );
-    lastUsedModel = appliedTranslatorSettings.model;
-    saveLastUsedModel(lastUsedModel);
+    modelController.markUsed(appliedTranslatorSettings.model);
     renderAndSaveMessage("assistant", reply.response || "No response from model.", requestMetadata);
     setStatus(`Translation ready with ${appliedTranslatorSettings.model}`);
   } catch (error) {
@@ -298,39 +271,29 @@ async function handleStopClick() {
   }
 }
 
-async function tryStopModel(modelToStop, activeModel) {
-  if (!modelToStop || modelToStop === activeModel) {
-    return;
-  }
-
-  try {
-    await stopModel(modelToStop);
-  } catch (error) {
-    console.warn(
-      `[assistant] Could not stop model "${modelToStop}" before switching.`,
-      error,
-    );
-  }
-}
-
-async function releaseOtherModels(activeModel, ...modelsToStop) {
-  await releaseOtherOllamaModels(activeModel);
-
-  const inactiveModels = [...new Set(modelsToStop)].filter(
-    (model) => model && model !== activeModel,
-  );
-
-  for (const model of inactiveModels) {
-    await tryStopModel(model, activeModel);
-  }
-}
-
 function handleClearClick() {
   clearMessages();
   clearChatHistory();
   promptHistory.clear();
   setStatus("Messages cleared.");
   focusPrompt();
+}
+
+async function handleCopyChatClick() {
+  const transcript = getChatTranscript();
+
+  if (!transcript) {
+    setStatus("There are no messages to copy.");
+    return;
+  }
+
+  try {
+    await navigator.clipboard.writeText(transcript);
+    showChatCopied();
+    setStatus("Chat copied to clipboard.");
+  } catch {
+    setStatus("Could not copy chat to clipboard.");
+  }
 }
 
 function handleDeleteModelClick() {
@@ -366,10 +329,7 @@ async function handleDeleteModelConfirm() {
   setStatus(`Removing ${model}...`);
 
   try {
-    await deleteModel(model);
-    renderModelInfo(`Removed model: ${model}`);
-    setStatus(`Removed ${model}`);
-    await initializeModels();
+    await modelController.remove(model, getSelectedModel);
   } catch (error) {
     setStatus(error instanceof Error ? error.message : "Could not remove model.");
   } finally {
@@ -379,52 +339,7 @@ async function handleDeleteModelConfirm() {
 
 function handleModelChange() {
   const model = getSelectedModel();
-  saveModel(model);
-  setCurrentModelName(model);
-  renderModelInfo(model ? `Current model: ${model}` : "Select a model and tap Model info.");
-}
-
-async function initializeModels(preferredModel = "") {
-  setStatus("Loading models...");
-
-  try {
-    try {
-      availableModels = await loadModels();
-    } catch {
-      setStatus("Ollama is unavailable. Starting it...");
-      const result = await startOllama();
-
-      if (!result?.ready) {
-        throw new Error(result?.message || "Ollama did not become ready.");
-      }
-
-      availableModels = await loadModels();
-    }
-
-    const fallbackModel = preferredModel || savedModel || getSelectedModel();
-    renderModelOptions(availableModels, fallbackModel);
-    translatorController.updateAvailableModels(availableModels);
-    const selectedModel = getSelectedModel();
-    setStatus(`${availableModels.length} model${availableModels.length === 1 ? "" : "s"} available`);
-
-    if (availableModels.length > 0) {
-      const currentModel = selectedModel || availableModels[0]?.name || "Unnamed model";
-      setCurrentModelName(currentModel);
-      renderModelInfo(`Current model: ${currentModel}`);
-    } else {
-      setCurrentModelName("Not selected");
-      renderModelInfo("Select a model and load info.");
-    }
-  } catch (error) {
-    availableModels = [];
-    renderModelOptions([]);
-    translatorController.updateAvailableModels([]);
-    setCurrentModelName("Not available");
-    renderModelInfo("Could not load model info. Start Ollama and refresh the models list.");
-    setStatus(error instanceof Error ? error.message : "Could not load models");
-  } finally {
-    updateBusyState(false);
-  }
+  modelController.select(model);
 }
 
 async function initializeInstructions() {
@@ -441,13 +356,14 @@ bindChatForm(handleSubmit);
 bindContextChange(() => saveContext(getContextValue()));
 bindAssistantTranslate(handleAssistantTranslate);
 bindClearButton(handleClearClick);
+bindCopyChatButton(handleCopyChatClick);
 bindDeleteModelButton(handleDeleteModelClick);
 bindDeleteModelDialogCancel(handleDeleteModelCancel);
 bindDeleteModelDialogConfirm(handleDeleteModelConfirm);
 bindInfoButton(handleInfoClick);
 bindMessageIncludeChange(() => saveChatHistory(getMessagesForStorage()));
 bindModelChange(handleModelChange);
-bindRefreshModelsButton(initializeModels);
+bindRefreshModelsButton(() => modelController.initialize("", getSelectedModel));
 bindStartOllamaButton(handleStartOllamaClick);
 bindStopButton(handleStopClick);
 bindTabs();
@@ -459,4 +375,4 @@ setContextValue(getSavedContext());
 
 updateBusyState(true);
 translatorController.initialize();
-initializationPromise = Promise.all([initializeModels(), initializeInstructions()]);
+initializationPromise = Promise.all([modelController.initialize("", getSelectedModel), initializeInstructions()]);

@@ -1,4 +1,6 @@
 import { renderMessageMarkdown } from "./message-markdown.mjs";
+import { installMobileViewportHandling } from "./ui/mobile-viewport.js";
+import { formatModelOptionLabel, renderSelectOptions } from "./ui/selects.js";
 
 const modelSelect = document.querySelector("[data-model-select]");
 const modelInfo = document.querySelector("[data-model-info]");
@@ -13,6 +15,7 @@ const contextInput = document.querySelector("[data-context]");
 const directorInput = document.querySelector("[data-director]");
 const recentPromptsSelect = document.querySelector("[data-recent-prompts-select]");
 const clearButton = document.querySelector("[data-clear-button]");
+const copyChatButton = document.querySelector("[data-copy-chat-button]");
 const deleteDialog = document.querySelector("[data-delete-preset-dialog]");
 const deleteDialogCancelButton = document.querySelector("[data-delete-dialog-cancel]");
 const deleteDialogConfirmButton = document.querySelector("[data-delete-dialog-confirm]");
@@ -48,57 +51,7 @@ let canStopGeneration = false;
 let assistantTranslateEnabled = false;
 let assistantTranslateHandler = null;
 
-function getKeyboardInset() {
-  const viewport = window.visualViewport;
-
-  if (!viewport) {
-    return 0;
-  }
-
-  return Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop);
-}
-
-function syncKeyboardInset() {
-  document.documentElement.style.setProperty("--keyboard-inset", `${getKeyboardInset()}px`);
-}
-
-function keepFocusedFieldVisible() {
-  const activeElement = document.activeElement;
-
-  if (!(activeElement instanceof HTMLTextAreaElement || activeElement instanceof HTMLInputElement)) {
-    return;
-  }
-
-  const viewport = window.visualViewport;
-  const visibleBottom = viewport ? viewport.offsetTop + viewport.height : window.innerHeight;
-  const margin = 16;
-  const fieldBounds = activeElement.getBoundingClientRect();
-  const overlap = fieldBounds.bottom - (visibleBottom - margin);
-
-  if (overlap > 0) {
-    window.scrollBy({ top: overlap, behavior: "auto" });
-  }
-}
-
-function installMobileKeyboardHandling() {
-  const scheduleViewportSync = () => {
-    syncKeyboardInset();
-    requestAnimationFrame(keepFocusedFieldVisible);
-  };
-
-  window.visualViewport?.addEventListener("resize", scheduleViewportSync);
-  window.visualViewport?.addEventListener("scroll", scheduleViewportSync);
-  window.addEventListener("orientationchange", scheduleViewportSync);
-  document.addEventListener("focusin", () => {
-    scheduleViewportSync();
-    window.setTimeout(scheduleViewportSync, 250);
-    window.setTimeout(scheduleViewportSync, 600);
-  });
-  window.addEventListener("pageshow", scheduleViewportSync);
-  syncKeyboardInset();
-}
-
-installMobileKeyboardHandling();
+installMobileViewportHandling();
 
 function syncMessageIncludeCheckboxes() {
   const includeCheckboxes = document.querySelectorAll("[data-message-include-checkbox]");
@@ -155,70 +108,7 @@ function setActiveTab(tabName) {
   }
 }
 
-function formatBytes(bytes) {
-  if (!Number.isFinite(bytes) || bytes <= 0) {
-    return "Unknown size";
-  }
-
-  const units = ["B", "KB", "MB", "GB", "TB"];
-  let value = bytes;
-  let unitIndex = 0;
-
-  while (value >= 1024 && unitIndex < units.length - 1) {
-    value /= 1024;
-    unitIndex += 1;
-  }
-
-  return `${value.toFixed(value >= 10 || unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
-}
-
-export function formatModelOptionLabel(model) {
-  const title = model?.name ?? "Unnamed model";
-  const size = formatBytes(model?.size);
-  return `${title} - ${size}`;
-}
-
-export function renderSelectOptions(
-  selectElement,
-  options,
-  { emptyLabel, getValue = (option) => option?.value ?? "", getLabel = (option) => option?.label ?? "", selectedValue = null } = {},
-) {
-  if (!selectElement) {
-    return false;
-  }
-
-  const normalizedOptions = Array.isArray(options) ? options : [];
-  selectElement.innerHTML = "";
-
-  if (normalizedOptions.length === 0) {
-    const option = document.createElement("option");
-    option.value = "";
-    option.textContent = emptyLabel;
-    selectElement.appendChild(option);
-    return false;
-  }
-
-  for (const item of normalizedOptions) {
-    const option = document.createElement("option");
-    option.value = String(getValue(item));
-    option.textContent = String(getLabel(item));
-    selectElement.appendChild(option);
-  }
-
-  const normalizedSelectedValue =
-    selectedValue !== null && selectedValue !== undefined ? String(selectedValue) : "";
-  const hasSelectedValue =
-    normalizedSelectedValue &&
-    normalizedOptions.some((item) => String(getValue(item)) === normalizedSelectedValue);
-
-  if (hasSelectedValue) {
-    selectElement.value = normalizedSelectedValue;
-  } else if (selectElement.options.length > 0) {
-    selectElement.selectedIndex = 0;
-  }
-
-  return true;
-}
+export { formatModelOptionLabel, renderSelectOptions } from "./ui/selects.js";
 
 export function bindChatForm(handler) {
   chatForm?.addEventListener("submit", handler);
@@ -230,6 +120,10 @@ export function bindContextChange(handler) {
 
 export function bindClearButton(handler) {
   clearButton?.addEventListener("click", handler);
+}
+
+export function bindCopyChatButton(handler) {
+  copyChatButton?.addEventListener("click", handler);
 }
 
 export function bindRecentPromptChange(handler) {
@@ -410,6 +304,34 @@ export function getMessagesForStorage() {
       },
     }];
   });
+}
+
+export function getChatTranscript() {
+  if (!messageList) {
+    return "";
+  }
+
+  return Array.from(messageList.querySelectorAll("[data-message-role]")).flatMap((item) => {
+    const role = item.getAttribute("data-message-role");
+    const text = item.querySelector(".message-text")?.getAttribute("data-message-raw-text")?.trim();
+
+    if ((role !== "user" && role !== "assistant") || !text) {
+      return [];
+    }
+
+    return [`${role === "user" ? "User" : "Assistant"}:\n${text}`];
+  }).join("\n\n");
+}
+
+export function showChatCopied() {
+  if (!copyChatButton) {
+    return;
+  }
+
+  copyChatButton.textContent = "Copied";
+  setTimeout(() => {
+    copyChatButton.textContent = "Copy chat";
+  }, 1200);
 }
 
 export function getIncludedMessages() {
