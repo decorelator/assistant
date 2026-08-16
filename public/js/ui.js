@@ -25,7 +25,7 @@ const deleteModelDialog = document.querySelector("[data-delete-model-dialog]");
 const deleteModelDialogCancelButton = document.querySelector("[data-delete-model-dialog-cancel]");
 const deleteModelDialogConfirmButton = document.querySelector("[data-delete-model-dialog-confirm]");
 const deleteModelDialogCopy = document.querySelector("[data-delete-model-dialog-copy]");
-const reviewDialog = document.querySelector("[data-review-dialog]");
+const reviewScreen = document.querySelector("[data-review-screen]");
 const reviewApproveButton = document.querySelector("[data-review-approve-button]");
 const reviewCancelButton = document.querySelector("[data-review-cancel-button]");
 const reviewRegenerateButton = document.querySelector("[data-review-regenerate-button]");
@@ -825,13 +825,17 @@ export function closeDeleteModelDialog() {
 }
 
 export function openReviewDialog() {
-  if (reviewDialog && !reviewDialog.open) {
-    reviewDialog.showModal();
+  if (reviewScreen) {
+    reviewScreen.hidden = false;
+    document.body.classList.add("review-screen-open");
   }
 }
 
 export function closeReviewDialog() {
-  reviewDialog?.close();
+  if (reviewScreen) {
+    reviewScreen.hidden = true;
+    document.body.classList.remove("review-screen-open");
+  }
 }
 
 export function closeSaveDialog() {

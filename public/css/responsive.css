@@ -1,3 +1,4 @@
 @media (min-width:640px) { main { padding:14px; }.page-header,.messages-section,.control-panel { padding-left:14px; padding-right:14px; } }
 @media (max-width:639px) { main { padding-bottom:calc(10px + var(--keyboard-inset) + env(safe-area-inset-bottom)); }.tab-panel[data-tab-name="msg"] .actions { position:sticky; bottom:var(--keyboard-inset); z-index:1; padding:8px 0 calc(8px + env(safe-area-inset-bottom)); background:var(--surface); } }
 @media (max-width:420px) { .tabs { grid-template-columns:repeat(2,minmax(0,1fr)); }.actions { flex-direction:column; }.tab-panel[data-tab-name="msg"] .actions { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); } }
+@media (max-width:639px) { .review-screen-body { padding:12px 12px calc(12px + env(safe-area-inset-bottom)); }.review-screen .actions { position:sticky; bottom:0; padding:8px 0 calc(8px + env(safe-area-inset-bottom)); background:var(--surface); } }
