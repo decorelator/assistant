@@ -27,3 +27,4 @@ data/
 .vscode/
 coverage/
 utils/instr.md
+AGENTS.md
