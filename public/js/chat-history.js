@@ -18,6 +18,12 @@ function normalizeMetadata(metadata) {
     normalized.included = metadata.included;
   }
 
+  for (const key of ["context", "director"]) {
+    if (typeof metadata[key] === "string") {
+      normalized[key] = metadata[key];
+    }
+  }
+
   return normalized;
 }
 

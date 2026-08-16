@@ -137,7 +137,7 @@ async function handleSubmit(event) {
 
   promptHistory.rememberSubmittedPrompt(prompt);
   markMessagesAsStale();
-  renderAndSaveMessage("user", prompt);
+  renderAndSaveMessage("user", prompt, { context, director });
   setPromptValue("");
   clearDirectorValue();
 

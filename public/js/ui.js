@@ -53,6 +53,106 @@ let assistantTranslateHandler = null;
 
 installMobileViewportHandling();
 
+function getSnapshotValue(item, key) {
+  const attributeName = `data-message-${key}`;
+
+  if (!(item instanceof HTMLElement) || !item.hasAttribute(attributeName)) {
+    return null;
+  }
+
+  return item.getAttribute(attributeName) ?? "";
+}
+
+function getSnapshotStatus(value, previousValue) {
+  if (previousValue === null) {
+    return value ? "set" : "not set";
+  }
+
+  if (!value && previousValue) {
+    return "cleared";
+  }
+
+  if (value === previousValue) {
+    return "unchanged";
+  }
+
+  return "changed";
+}
+
+function getLatestUserSnapshot(key) {
+  if (!messageList) {
+    return null;
+  }
+
+  let previousItem = messageList.lastElementChild;
+
+  while (previousItem) {
+    if (previousItem instanceof HTMLElement && previousItem.getAttribute("data-message-role") === "user") {
+      return getSnapshotValue(previousItem, key);
+    }
+
+    previousItem = previousItem.previousElementSibling;
+  }
+
+  return null;
+}
+
+function buildSnapshotDetails(label, key, value, previousValue) {
+  const status = getSnapshotStatus(value, previousValue);
+  const detailsElement = document.createElement("details");
+  detailsElement.className = `message-snapshot message-snapshot-${key}`;
+
+  const summaryElement = document.createElement("summary");
+  summaryElement.className = "message-snapshot-summary";
+
+  const labelElement = document.createElement("span");
+  labelElement.className = "message-snapshot-label";
+  labelElement.textContent = label;
+
+  const statusElement = document.createElement("span");
+  statusElement.className = "message-snapshot-status";
+  statusElement.textContent = status;
+
+  summaryElement.appendChild(labelElement);
+  summaryElement.appendChild(statusElement);
+  detailsElement.appendChild(summaryElement);
+
+  const bodyElement = document.createElement("div");
+  bodyElement.className = "message-snapshot-body";
+  bodyElement.textContent = value || "Empty";
+  detailsElement.appendChild(bodyElement);
+
+  return detailsElement;
+}
+
+function renderUserMessageSnapshots(item, metadata) {
+  const hasContext = Object.prototype.hasOwnProperty.call(metadata, "context");
+  const hasDirector = Object.prototype.hasOwnProperty.call(metadata, "director");
+
+  if (!hasContext && !hasDirector) {
+    return;
+  }
+
+  const snapshotsElement = document.createElement("div");
+  snapshotsElement.className = "message-snapshots";
+
+  if (hasContext) {
+    const context = typeof metadata.context === "string" ? metadata.context : "";
+    const previousContext = getLatestUserSnapshot("context");
+    item.setAttribute("data-message-context", context);
+    snapshotsElement.appendChild(buildSnapshotDetails("Context", "context", context, previousContext));
+  }
+
+  if (hasDirector) {
+    const director = typeof metadata.director === "string" ? metadata.director : "";
+    const previousDirector = getLatestUserSnapshot("director");
+    item.setAttribute("data-message-director", director);
+    snapshotsElement.appendChild(buildSnapshotDetails("Director", "director", director, previousDirector));
+  }
+
+  item.appendChild(snapshotsElement);
+}
+
 function syncMessageIncludeCheckboxes() {
   const includeCheckboxes = document.querySelectorAll("[data-message-include-checkbox]");
 
@@ -294,14 +394,24 @@ export function getMessagesForStorage() {
       return [];
     }
 
+    const metadata = {
+      modelName: item.getAttribute("data-message-model") ?? undefined,
+      instructionName: item.getAttribute("data-message-instruction-name") ?? undefined,
+      included: checkbox instanceof HTMLInputElement ? checkbox.checked : true,
+    };
+
+    if (item.hasAttribute("data-message-context")) {
+      metadata.context = item.getAttribute("data-message-context") ?? "";
+    }
+
+    if (item.hasAttribute("data-message-director")) {
+      metadata.director = item.getAttribute("data-message-director") ?? "";
+    }
+
     return [{
       role,
       text,
-      metadata: {
-        modelName: item.getAttribute("data-message-model") ?? undefined,
-        instructionName: item.getAttribute("data-message-instruction-name") ?? undefined,
-        included: checkbox instanceof HTMLInputElement ? checkbox.checked : true,
-      },
+      metadata,
     }];
   });
 }
@@ -427,6 +537,10 @@ export function renderMessage(role, text, metadata = {}) {
 
   item.appendChild(headerElement);
   item.appendChild(textElement);
+
+  if (role === "user") {
+    renderUserMessageSnapshots(item, metadata);
+  }
 
   if (isSelectableMessage) {
     const actionsElement = document.createElement("div");
