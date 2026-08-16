@@ -21,12 +21,16 @@ import {
   bindInfoButton,
   bindMessageIncludeChange,
   bindModelChange,
+  bindReviewApprove,
+  bindReviewCancel,
+  bindReviewRegenerate,
   bindRefreshModelsButton,
   bindStartOllamaButton,
   bindStopButton,
   bindTabs,
   clearDirectorValue,
   clearMessages,
+  closeReviewDialog,
   closeDeleteModelDialog,
   focusPrompt,
   getSelectedModel,
@@ -35,9 +39,12 @@ import {
   getContextValue,
   getDirectorValue,
   getMessagesForStorage,
+  getLastMessage,
   markMessagesAsStale,
+  openReviewDialog,
   openDeleteModelDialog,
   renderMessage,
+  renderReviewDialogContent,
   renderModelInfo,
   renderModelOptions,
   setCurrentInstructionName,
@@ -50,6 +57,7 @@ import {
   setStatus,
   setAssistantTranslateEnabled,
   setPromptValue,
+  setReviewBusy,
   setStopEnabled,
 } from "./ui.js";
 import { clearChatHistory, loadChatHistory, saveChatHistory } from "./chat-history.js";
@@ -59,6 +67,7 @@ const savedInstructionPresetId = getSavedInstructionPresetId();
 let appliedTranslatorSettings = null;
 let isGenerating = false;
 let pendingDeleteModel = "";
+let pendingReview = null;
 let initializationPromise = Promise.resolve();
 const translatorController = createTranslatorController({
   onAppliedSelectionChange(settings) {
@@ -69,6 +78,7 @@ const translatorController = createTranslatorController({
 });
 
 function renderAndSaveMessage(role, text, metadata = {}) {
+  markMessagesAsStale();
   renderMessage(role, text, metadata);
   saveChatHistory(getMessagesForStorage());
 }
@@ -100,6 +110,148 @@ function endGeneration() {
   isGenerating = false;
   setStopEnabled(false);
 }
+
+function clearPendingReview() {
+  pendingReview = null;
+  setReviewBusy(false);
+}
+
+function buildPendingReview() {
+  const model = getSelectedModel();
+  const translatorModel = translatorController.getSelectedModel();
+  const instruction = instructionController.getInstructionValue();
+  const selectedPresetId = instructionController.getSelectedPresetId();
+  const prompt = promptHistory.getPromptForSubmit();
+  const context = getContextValue();
+  const director = getDirectorValue();
+  const includedMessages = getIncludedMessages().map((message) => ({ ...message }));
+
+  if (!model || !prompt) {
+    setStatus("Write a message first.");
+    return null;
+  }
+
+  return {
+    model,
+    translatorModel,
+    instruction,
+    selectedPresetId,
+    prompt,
+    context,
+    director,
+    includedMessages,
+    previousMessage: getLastMessage(),
+    requestMetadata: {
+      instructionName: instructionController.getCurrentInstructionName(),
+      modelName: model,
+    },
+    reply: "",
+  };
+}
+
+async function generateReviewDraft() {
+  if (!pendingReview) {
+    return false;
+  }
+
+  updateBusyState(true);
+  beginGeneration();
+  setStatus(`Sending to ${pendingReview.model}...`);
+
+  try {
+    await modelController.releaseInactiveModels(
+      pendingReview.model,
+      pendingReview.translatorModel,
+      modelController.getLastUsedModel(),
+    );
+    const reply = await sendMessage(
+      pendingReview.model,
+      pendingReview.prompt,
+      pendingReview.instruction,
+      pendingReview.selectedPresetId,
+      pendingReview.includedMessages,
+      pendingReview.director,
+      pendingReview.context,
+    );
+
+    modelController.markUsed(pendingReview.model);
+
+    if (pendingReview.selectedPresetId) {
+      instructionController.markPresetAsUsed(pendingReview.selectedPresetId);
+    }
+
+    pendingReview.reply = reply.response || "No response from model.";
+    renderReviewDialogContent({
+      previous: pendingReview.previousMessage,
+      current: pendingReview.prompt,
+      draft: pendingReview.reply,
+      draftRole: "assistant",
+    });
+    openReviewDialog();
+    setStatus(`Draft ready with ${pendingReview.model}`);
+    return true;
+  } catch (error) {
+    if (isGenerationStoppedError(error)) {
+      setStatus("Generation stopped.");
+      return false;
+    }
+
+    setStatus(error instanceof Error ? error.message : "Request failed");
+    return false;
+  } finally {
+    endGeneration();
+    updateBusyState(false);
+    setReviewBusy(false);
+
+    if (!pendingReview?.reply) {
+      focusPrompt();
+    }
+  }
+}
+
+function approvePendingReview() {
+  if (!pendingReview) {
+    return;
+  }
+
+  renderAndSaveMessage("user", pendingReview.prompt, {
+    context: pendingReview.context,
+    director: pendingReview.director,
+  });
+  renderMessage("assistant", pendingReview.reply, pendingReview.requestMetadata);
+  saveChatHistory(getMessagesForStorage());
+  promptHistory.rememberSubmittedPrompt(pendingReview.prompt);
+  setPromptValue("");
+  clearDirectorValue();
+  closeReviewDialog();
+  setStatus(`Approved reply from ${pendingReview.model}.`);
+  clearPendingReview();
+  focusPrompt();
+}
+
+function cancelPendingReview() {
+  closeReviewDialog();
+  clearPendingReview();
+  setStatus("Draft discarded.");
+  focusPrompt();
+}
+
+async function regeneratePendingReview() {
+  if (!pendingReview) {
+    return;
+  }
+
+  setReviewBusy(true);
+  pendingReview.reply = "";
+  renderReviewDialogContent({
+    previous: pendingReview.previousMessage,
+    current: pendingReview.prompt,
+    draft: "",
+    draftRole: "assistant",
+  });
+  setStatus(`Regenerating draft with ${pendingReview.model}...`);
+  await generateReviewDraft();
+}
 const instructionController = createInstructionController({
   onInstructionNameChange: setCurrentInstructionName,
   onInstructionPresetChange: saveInstructionPresetId,
@@ -121,62 +273,22 @@ async function handleSubmit(event) {
 
   await initializationPromise;
 
-  const model = getSelectedModel();
-  const translatorModel = translatorController.getSelectedModel();
-  const instruction = instructionController.getInstructionValue();
-  const selectedPresetId = instructionController.getSelectedPresetId();
-  const prompt = promptHistory.getPromptForSubmit();
-  const context = getContextValue();
-  const director = getDirectorValue();
-  const includedMessages = getIncludedMessages();
-
-  if (!model || !prompt) {
-    setStatus("Write a message first.");
+  if (pendingReview) {
+    openReviewDialog();
+    setStatus("Approve, regenerate, or cancel the current draft first.");
     return;
   }
 
-  promptHistory.rememberSubmittedPrompt(prompt);
-  markMessagesAsStale();
-  renderAndSaveMessage("user", prompt, { context, director });
-  setPromptValue("");
-  clearDirectorValue();
+  pendingReview = buildPendingReview();
 
-  updateBusyState(true);
-  beginGeneration();
-  setStatus(`Sending to ${model}...`);
+  if (!pendingReview) {
+    return;
+  }
 
-  try {
-    await modelController.releaseInactiveModels(model, translatorModel, modelController.getLastUsedModel());
-    const requestMetadata = {
-      instructionName: instructionController.getCurrentInstructionName(),
-      modelName: model,
-    };
-    const reply = await sendMessage(
-      model,
-      prompt,
-      instruction,
-      selectedPresetId,
-      includedMessages,
-      director,
-      context,
-    );
-    modelController.markUsed(model);
-    if (selectedPresetId) {
-      instructionController.markPresetAsUsed(selectedPresetId);
-    }
-    renderAndSaveMessage("assistant", reply.response || "No response from model.", requestMetadata);
-    setStatus(`Ready with ${model}`);
-  } catch (error) {
-    if (isGenerationStoppedError(error)) {
-      setStatus("Generation stopped.");
-    } else {
-      renderAndSaveMessage("assistant", error instanceof Error ? error.message : "Request failed");
-      setStatus("Message failed");
-    }
-  } finally {
-    endGeneration();
-    updateBusyState(false);
-    focusPrompt();
+  const didGenerateDraft = await generateReviewDraft();
+
+  if (!didGenerateDraft) {
+    clearPendingReview();
   }
 }
 
@@ -216,7 +328,6 @@ async function handleAssistantTranslate(sourceText) {
     return;
   }
 
-  markMessagesAsStale();
   renderAndSaveMessage("user", sourceText);
 
   updateBusyState(true);
@@ -272,6 +383,8 @@ async function handleStopClick() {
 }
 
 function handleClearClick() {
+  closeReviewDialog();
+  clearPendingReview();
   clearMessages();
   clearChatHistory();
   promptHistory.clear();
@@ -363,6 +476,9 @@ bindDeleteModelDialogConfirm(handleDeleteModelConfirm);
 bindInfoButton(handleInfoClick);
 bindMessageIncludeChange(() => saveChatHistory(getMessagesForStorage()));
 bindModelChange(handleModelChange);
+bindReviewApprove(approvePendingReview);
+bindReviewCancel(cancelPendingReview);
+bindReviewRegenerate(regeneratePendingReview);
 bindRefreshModelsButton(() => modelController.initialize("", getSelectedModel));
 bindStartOllamaButton(handleStartOllamaClick);
 bindStopButton(handleStopClick);

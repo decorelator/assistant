@@ -25,6 +25,15 @@ const deleteModelDialog = document.querySelector("[data-delete-model-dialog]");
 const deleteModelDialogCancelButton = document.querySelector("[data-delete-model-dialog-cancel]");
 const deleteModelDialogConfirmButton = document.querySelector("[data-delete-model-dialog-confirm]");
 const deleteModelDialogCopy = document.querySelector("[data-delete-model-dialog-copy]");
+const reviewDialog = document.querySelector("[data-review-dialog]");
+const reviewApproveButton = document.querySelector("[data-review-approve-button]");
+const reviewCancelButton = document.querySelector("[data-review-cancel-button]");
+const reviewRegenerateButton = document.querySelector("[data-review-regenerate-button]");
+const reviewPreviousRole = document.querySelector("[data-review-previous-role]");
+const reviewPreviousText = document.querySelector("[data-review-previous-text]");
+const reviewCurrentText = document.querySelector("[data-review-current-text]");
+const reviewDraftRole = document.querySelector("[data-review-draft-role]");
+const reviewDraftText = document.querySelector("[data-review-draft-text]");
 const sendButton = document.querySelector("[data-send-button]");
 const stopButton = document.querySelector("[data-stop-button]");
 const startOllamaButton = document.querySelector("[data-start-ollama-button]");
@@ -50,6 +59,7 @@ let isBusyState = false;
 let canStopGeneration = false;
 let assistantTranslateEnabled = false;
 let assistantTranslateHandler = null;
+let isReviewBusy = false;
 
 installMobileViewportHandling();
 
@@ -250,6 +260,18 @@ export function bindDeleteModelDialogConfirm(handler) {
   deleteModelDialogConfirmButton?.addEventListener("click", handler);
 }
 
+export function bindReviewApprove(handler) {
+  reviewApproveButton?.addEventListener("click", handler);
+}
+
+export function bindReviewCancel(handler) {
+  reviewCancelButton?.addEventListener("click", handler);
+}
+
+export function bindReviewRegenerate(handler) {
+  reviewRegenerateButton?.addEventListener("click", handler);
+}
+
 export function bindInfoButton(handler) {
   infoButton?.addEventListener("click", handler);
 }
@@ -431,6 +453,29 @@ export function getChatTranscript() {
 
     return [`${role === "user" ? "User" : "Assistant"}:\n${text}`];
   }).join("\n\n");
+}
+
+export function getLastMessage() {
+  if (!messageList) {
+    return null;
+  }
+
+  let item = messageList.lastElementChild;
+
+  while (item) {
+    if (item instanceof HTMLElement) {
+      const role = item.getAttribute("data-message-role");
+      const text = item.querySelector(".message-text")?.getAttribute("data-message-raw-text")?.trim();
+
+      if ((role === "user" || role === "assistant") && text) {
+        return { role, text };
+      }
+    }
+
+    item = item.previousElementSibling;
+  }
+
+  return null;
 }
 
 export function showChatCopied() {
@@ -697,6 +742,7 @@ export function setBusy(isBusy, availableModelCount) {
   syncAssistantTranslateButtons();
   syncMessageIncludeCheckboxes();
   syncStopButton();
+  syncReviewDialogButtons();
 }
 
 export function setDefaults(config) {
@@ -776,6 +822,16 @@ export function closeDeleteModelDialog() {
   deleteModelDialog?.close();
 }
 
+export function openReviewDialog() {
+  if (reviewDialog && !reviewDialog.open) {
+    reviewDialog.showModal();
+  }
+}
+
+export function closeReviewDialog() {
+  reviewDialog?.close();
+}
+
 export function closeSaveDialog() {
   saveDialog?.close();
 }
@@ -824,4 +880,39 @@ export function setAssistantTranslateEnabled(isEnabled) {
 export function setStopEnabled(isEnabled) {
   canStopGeneration = isEnabled;
   syncStopButton();
+}
+
+export function setReviewBusy(isBusy) {
+  isReviewBusy = isBusy;
+  syncReviewDialogButtons();
+}
+
+export function renderReviewDialogContent(review) {
+  if (reviewPreviousRole) {
+    reviewPreviousRole.textContent = review.previous?.role ?? "None yet";
+  }
+
+  if (reviewPreviousText) {
+    reviewPreviousText.innerHTML = review.previous?.text
+      ? renderMessageMarkdown(review.previous.text)
+      : "No approved messages yet.";
+  }
+
+  if (reviewCurrentText) {
+    reviewCurrentText.innerHTML = renderMessageMarkdown(review.current);
+  }
+
+  if (reviewDraftRole) {
+    reviewDraftRole.textContent = review.draftRole ?? "assistant";
+  }
+
+  if (reviewDraftText) {
+    reviewDraftText.innerHTML = renderMessageMarkdown(review.draft);
+  }
+}
+
+function syncReviewDialogButtons() {
+  reviewApproveButton && (reviewApproveButton.disabled = isReviewBusy);
+  reviewCancelButton && (reviewCancelButton.disabled = isReviewBusy);
+  reviewRegenerateButton && (reviewRegenerateButton.disabled = isReviewBusy);
 }

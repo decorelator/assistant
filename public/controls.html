@@ -233,3 +233,42 @@
     </div>
   </form>
 </dialog>
+
+<dialog class="dialog review-dialog" data-review-dialog>
+  <form class="dialog-form review-dialog-form" method="dialog">
+    <h2 class="dialog-title">Review generated reply</h2>
+    <p class="dialog-copy">
+      Approve to add this exchange to the chat, or retry a new draft from the same request.
+    </p>
+
+    <section class="review-section">
+      <span class="label">Previous approved message</span>
+      <div class="review-message review-message-previous">
+        <div class="review-message-role" data-review-previous-role>None yet</div>
+        <div class="review-message-text" data-review-previous-text>No approved messages yet.</div>
+      </div>
+    </section>
+
+    <section class="review-section">
+      <span class="label">Current message</span>
+      <div class="review-message review-message-user">
+        <div class="review-message-role">user</div>
+        <div class="review-message-text" data-review-current-text></div>
+      </div>
+    </section>
+
+    <section class="review-section">
+      <span class="label">Generated draft</span>
+      <div class="review-message review-message-assistant">
+        <div class="review-message-role" data-review-draft-role>assistant</div>
+        <div class="review-message-text" data-review-draft-text></div>
+      </div>
+    </section>
+
+    <div class="actions">
+      <button type="button" class="button-secondary" data-review-regenerate-button>Retry</button>
+      <button type="button" class="button-secondary" data-review-cancel-button>Cancel</button>
+      <button type="button" data-review-approve-button>Approve</button>
+    </div>
+  </form>
+</dialog>
