@@ -1,5 +1,6 @@
 import { loadModelInfo, sendMessage, stopGeneration } from "./api.js";
 import { createModelController } from "./features/models/model-controller.js";
+import { createSceneController } from "./features/scene-controller.js";
 import { createInstructionController } from "./instructions.js";
 import { createPromptHistoryController } from "./prompt-history.js";
 import {
@@ -267,6 +268,12 @@ const modelController = createModelController({
   setBusy: updateBusyState,
   updateTranslatorModels: translatorController.updateAvailableModels,
 });
+const sceneController = createSceneController({
+  getLastUsedModel: modelController.getLastUsedModel,
+  getSelectedChatModel: getSelectedModel,
+  markModelUsed: modelController.markUsed,
+  releaseInactiveModels: modelController.releaseInactiveModels,
+});
 
 async function handleSubmit(event) {
   event.preventDefault();
@@ -506,6 +513,7 @@ bindTabs();
 instructionController.bindEvents();
 promptHistory.bindEvents();
 translatorController.bindEvents();
+sceneController.initialize();
 const restoredPrompt = restoreChatHistory();
 setContextValue(getSavedContext());
 

@@ -7,18 +7,390 @@
     <link rel="stylesheet" href="/css/styles.css" />
   </head>
   <body>
-    <main>
+    <main data-app-main>
       <header class="page-header">
         <h1>Ollama Model Chat</h1>
       </header>
 
-      <section class="messages-section" aria-label="Conversation">
-        <ul class="messages" data-message-list>
-          <li class="empty" data-empty-state>Messages will appear here.</li>
-        </ul>
+      <section class="workspace-switcher" aria-label="Workspace">
+        <div class="workspace-switcher-buttons" role="tablist" aria-label="Workspace switcher">
+          <button
+            type="button"
+            class="workspace-switcher-button is-active"
+            data-workspace-button
+            data-workspace-target="chat"
+            aria-selected="true"
+          >
+            Chat
+          </button>
+          <button
+            type="button"
+            class="workspace-switcher-button"
+            data-workspace-button
+            data-workspace-target="scene"
+            aria-selected="false"
+          >
+            Scene
+          </button>
+        </div>
       </section>
-      <section data-controls-container aria-label="Assistant controls"></section>
+
+      <section class="chat-workspace" data-chat-workspace>
+        <section class="messages-section" aria-label="Conversation">
+          <ul class="messages" data-message-list>
+            <li class="empty" data-empty-state>Messages will appear here.</li>
+          </ul>
+        </section>
+        <section data-controls-container aria-label="Assistant controls"></section>
+      </section>
+
+      <section class="scene-workspace" data-scene-workspace hidden aria-label="Scene workspace">
+        <section class="scene-screen scene-setup-screen" data-scene-setup-screen>
+          <header class="scene-screen-header">
+            <div class="scene-screen-heading">
+              <p class="scene-eyebrow">Scene</p>
+              <h2 class="scene-screen-title" data-scene-setup-title>Untitled scene</h2>
+            </div>
+            <div class="scene-status-pill" data-scene-setup-status>Draft</div>
+          </header>
+
+          <div class="scene-setup-grid">
+            <div class="scene-setup-main">
+              <section class="scene-section">
+                <div class="scene-section-header">
+                  <div>
+                    <h3 class="scene-section-title">Characters</h3>
+                    <p class="scene-section-copy">
+                      Two compact cards drive the alternating dialogue. Full cards open in a dialog.
+                    </p>
+                  </div>
+                </div>
+
+                <div class="scene-character-grid">
+                  <article class="scene-card scene-character-card" data-scene-character-card="A">
+                    <div class="scene-character-card-header">
+                      <div>
+                        <p class="scene-character-label">Character A</p>
+                        <h4 class="scene-character-name" data-scene-character-name="A">Character A</h4>
+                      </div>
+                      <button
+                        type="button"
+                        class="button-secondary scene-compact-button"
+                        data-scene-edit-character="A"
+                      >
+                        Edit
+                      </button>
+                    </div>
+                    <p class="scene-character-model" data-scene-character-model="A">Model not selected</p>
+                    <p class="scene-character-preview" data-scene-character-preview="A">
+                      Add a card to define this speaker.
+                    </p>
+                  </article>
+
+                  <article class="scene-card scene-character-card" data-scene-character-card="B">
+                    <div class="scene-character-card-header">
+                      <div>
+                        <p class="scene-character-label">Character B</p>
+                        <h4 class="scene-character-name" data-scene-character-name="B">Character B</h4>
+                      </div>
+                      <button
+                        type="button"
+                        class="button-secondary scene-compact-button"
+                        data-scene-edit-character="B"
+                      >
+                        Edit
+                      </button>
+                    </div>
+                    <p class="scene-character-model" data-scene-character-model="B">Model not selected</p>
+                    <p class="scene-character-preview" data-scene-character-preview="B">
+                      Add a card to define this speaker.
+                    </p>
+                  </article>
+                </div>
+              </section>
+
+              <section class="scene-section">
+                <div class="scene-section-header">
+                  <div>
+                    <h3 class="scene-section-title">Scene</h3>
+                    <p class="scene-section-copy">
+                      Exchanges are pairs of replies. Ten exchanges always produce twenty replies.
+                    </p>
+                  </div>
+                </div>
+
+                <div class="scene-field-grid">
+                  <div class="field scene-field-span">
+                    <label class="label" for="scene-title">Scene title</label>
+                    <input id="scene-title" type="text" maxlength="120" data-scene-field="title" />
+                  </div>
+
+                  <div class="field scene-field-span">
+                    <label class="label" for="scene-global-instruction">Global instruction</label>
+                    <textarea
+                      id="scene-global-instruction"
+                      class="scene-global-instruction-input"
+                      data-scene-field="globalInstruction"
+                      placeholder="Write shared system-level rules for both characters. This block is sent first in the system prompt for every reply..."
+                    ></textarea>
+                    <p class="scene-field-note">
+                      Shared system instruction for every turn. It is placed before the character card.
+                    </p>
+                  </div>
+
+                  <div class="field scene-field-span">
+                    <label class="label" for="scene-context">Scene context</label>
+                    <textarea
+                      id="scene-context"
+                      class="scene-context-input"
+                      data-scene-field="context"
+                      placeholder="Describe the setting, the tension, and what both characters already know..."
+                    ></textarea>
+                  </div>
+
+                  <div class="field">
+                    <label class="label" for="scene-exchange-count">Exchanges</label>
+                    <input
+                      id="scene-exchange-count"
+                      type="number"
+                      min="1"
+                      max="50"
+                      step="1"
+                      data-scene-field="exchangeCount"
+                    />
+                    <p class="scene-field-note" data-scene-reply-count-note>20 replies total.</p>
+                  </div>
+
+                  <div class="field">
+                    <label class="label" for="scene-first-speaker">First speaker</label>
+                    <select id="scene-first-speaker" data-scene-field="firstSpeaker">
+                      <option value="A">Character A</option>
+                      <option value="B">Character B</option>
+                    </select>
+                  </div>
+
+                  <div class="field">
+                    <label class="label" for="scene-run-mode">Run mode</label>
+                    <select id="scene-run-mode" data-scene-field="runMode">
+                      <option value="auto">Auto</option>
+                      <option value="step">Step by step</option>
+                    </select>
+                    <p class="scene-field-note">Step by step continues one full exchange at a time.</p>
+                  </div>
+
+                  <div class="field">
+                    <label class="label" for="scene-cooldown">Cooldown</label>
+                    <select id="scene-cooldown" data-scene-field="cooldownSeconds">
+                      <option value="2">2 seconds</option>
+                      <option value="5">5 seconds</option>
+                      <option value="10">10 seconds</option>
+                    </select>
+                    <p class="scene-field-note">Cooldown runs only between completed exchanges.</p>
+                  </div>
+                </div>
+              </section>
+            </div>
+
+            <aside class="scene-setup-side">
+              <section class="scene-section scene-direction-section">
+                <div class="scene-section-header">
+                  <div>
+                    <h3 class="scene-section-title">Direction</h3>
+                    <p class="scene-section-copy">
+                      Beats apply before A, before B, or to the full exchange.
+                    </p>
+                  </div>
+                </div>
+
+                <ol class="scene-beat-list" data-scene-setup-beat-list></ol>
+                <button
+                  type="button"
+                  class="button-secondary scene-add-beat-button"
+                  data-scene-add-beat
+                >
+                  Add beat
+                </button>
+              </section>
+            </aside>
+          </div>
+
+          <footer class="scene-action-bar">
+            <div class="scene-action-copy" data-scene-setup-action-copy>
+              Draft is saved locally and does not affect the regular chat history.
+            </div>
+            <div class="scene-action-buttons">
+              <button
+                type="button"
+                class="button-secondary"
+                data-scene-back-to-run
+                hidden
+              >
+                Back to run
+              </button>
+              <button type="button" data-scene-generate>Generate scene</button>
+            </div>
+          </footer>
+        </section>
+
+        <section class="scene-screen scene-run-screen" data-scene-run-screen hidden>
+          <header class="scene-screen-header">
+            <div class="scene-screen-heading">
+              <p class="scene-eyebrow">Scene run</p>
+              <h2 class="scene-screen-title" data-scene-run-title>Untitled scene</h2>
+            </div>
+            <div class="scene-run-summary">
+              <span class="scene-run-pair" data-scene-run-pair>Pair 1 / 10</span>
+              <span class="scene-status-pill" data-scene-run-status>Draft</span>
+            </div>
+          </header>
+
+          <div class="scene-run-grid">
+            <section class="scene-section scene-run-dialogue">
+              <div class="scene-run-meta">
+                <div class="scene-run-meta-block">
+                  <span class="label">Current speaker</span>
+                  <div class="scene-run-meta-value" data-scene-current-speaker>Character A</div>
+                </div>
+                <div class="scene-run-meta-block">
+                  <span class="label">Status</span>
+                  <div class="scene-run-meta-value" data-scene-current-status>Draft</div>
+                </div>
+                <div class="scene-run-meta-block">
+                  <span class="label">Cooldown</span>
+                  <div class="scene-run-meta-value" data-scene-countdown>Not running</div>
+                </div>
+              </div>
+
+              <ul class="scene-transcript" data-scene-transcript></ul>
+              <p class="scene-empty-run" data-scene-run-empty>No scene dialogue yet.</p>
+              <p class="scene-run-error" data-scene-run-error hidden></p>
+
+              <footer class="scene-run-actions" data-scene-run-actions>
+                <div class="scene-run-primary-actions">
+                  <button
+                    type="button"
+                    class="button-secondary"
+                    data-scene-pause
+                    hidden
+                  >
+                    Pause
+                  </button>
+                  <button
+                    type="button"
+                    class="button-secondary"
+                    data-scene-resume
+                    hidden
+                  >
+                    Resume
+                  </button>
+                  <button
+                    type="button"
+                    class="button-secondary"
+                    data-scene-continue
+                    hidden
+                  >
+                    Continue
+                  </button>
+                  <button
+                    type="button"
+                    class="button-secondary"
+                    data-scene-retry
+                    hidden
+                  >
+                    Retry
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  class="button-danger scene-stop-button"
+                  data-scene-stop
+                  hidden
+                >
+                  Stop
+                </button>
+              </footer>
+            </section>
+
+            <aside class="scene-run-side">
+              <section class="scene-section scene-run-rail scene-run-rail-desktop">
+                <div class="scene-run-rail-header">
+                  <h3 class="scene-section-title">Director beats</h3>
+                  <button
+                    type="button"
+                    class="button-secondary scene-compact-button"
+                    data-scene-open-setup
+                  >
+                    Scene setup
+                  </button>
+                </div>
+                <ol class="scene-beat-list scene-run-beat-list" data-scene-run-beat-list></ol>
+              </section>
+
+              <details class="scene-run-rail-mobile">
+                <summary>Director beats</summary>
+                <div class="scene-run-rail-mobile-body">
+                  <button
+                    type="button"
+                    class="button-secondary scene-compact-button"
+                    data-scene-open-setup-mobile
+                  >
+                    Scene setup
+                  </button>
+                  <ol class="scene-beat-list scene-run-beat-list" data-scene-run-beat-list-mobile></ol>
+                </div>
+              </details>
+            </aside>
+          </div>
+        </section>
+      </section>
     </main>
+
+    <dialog class="dialog scene-dialog" data-scene-character-dialog>
+      <form class="dialog-form scene-dialog-form" data-scene-character-form>
+        <h2 class="dialog-title" data-scene-character-dialog-title>Edit character</h2>
+        <label class="label" for="scene-character-name-input">Name</label>
+        <input id="scene-character-name-input" name="name" type="text" maxlength="80" />
+        <label class="label" for="scene-character-model-input">Model</label>
+        <select id="scene-character-model-input" name="model"></select>
+        <label class="label" for="scene-character-card-input">Character card</label>
+        <textarea
+          id="scene-character-card-input"
+          name="card"
+          class="scene-character-card-input"
+          placeholder="Write the full character card or instruction here..."
+        ></textarea>
+        <div class="actions">
+          <button type="button" class="button-secondary" data-scene-character-cancel>Cancel</button>
+          <button type="submit">Save</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="dialog scene-dialog" data-scene-beat-dialog>
+      <form class="dialog-form scene-dialog-form" data-scene-beat-form>
+        <h2 class="dialog-title" data-scene-beat-dialog-title>Add beat</h2>
+        <label class="label" for="scene-beat-pair-input">Pair number</label>
+        <input id="scene-beat-pair-input" name="pairNumber" type="number" min="1" max="50" step="1" />
+        <label class="label" for="scene-beat-moment-input">Apply</label>
+        <select id="scene-beat-moment-input" name="moment">
+          <option value="beforeA">Before A</option>
+          <option value="beforeB">Before B</option>
+          <option value="pair">Whole pair</option>
+        </select>
+        <label class="label" for="scene-beat-text-input">Direction</label>
+        <textarea
+          id="scene-beat-text-input"
+          name="text"
+          class="scene-beat-text-input"
+          placeholder="Describe the beat that should happen at this moment..."
+        ></textarea>
+        <p class="form-error" data-scene-beat-error hidden></p>
+        <div class="actions">
+          <button type="button" class="button-secondary" data-scene-beat-cancel>Cancel</button>
+          <button type="submit">Save</button>
+        </div>
+      </form>
+    </dialog>
     <script type="module" src="/js/app.js"></script>
   </body>
 </html>
