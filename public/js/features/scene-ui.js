@@ -1,3 +1,4 @@
+import { renderMessageMarkdown } from "../message-markdown.mjs";
 import { formatModelOptionLabel, renderSelectOptions } from "../ui/selects.js";
 import {
   canEditBeatInRun,
@@ -33,9 +34,16 @@ function getCharacterFallbackName(characterId) {
   return `Character ${characterId}`;
 }
 
-function getCharacterPreview(card) {
+function getCharacterPreview(card, characterId) {
   const text = typeof card === "string" ? card.trim() : "";
-  return text || "Add a card to define this speaker.";
+
+  if (text) {
+    return text;
+  }
+
+  return characterId === "A"
+    ? "Add a card to define this speaker. (Reminder: Character A is the male character.)"
+    : "Add a card to define this speaker. (Reminder: Character B is the female character.)";
 }
 
 function syncValue(element, value) {
@@ -413,7 +421,7 @@ export function createSceneUi() {
       );
       setText(
         document.querySelector(`[data-scene-character-preview='${characterId}']`),
-        getCharacterPreview(character.card),
+        getCharacterPreview(character.card, characterId),
       );
       const editButton = document.querySelector(`[data-scene-edit-character='${characterId}']`);
       if (editButton instanceof HTMLButtonElement) {
@@ -460,7 +468,7 @@ export function createSceneUi() {
 
         const text = document.createElement("p");
         text.className = "scene-transcript-text";
-        text.textContent = line.text;
+        text.innerHTML = renderMessageMarkdown(line.text);
 
         item.appendChild(header);
         item.appendChild(text);

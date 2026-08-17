@@ -126,7 +126,16 @@
 .scene-transcript-item-b { border-left:4px solid var(--accent); }
 .scene-transcript-item-a { border-left:4px solid var(--context); }
 .scene-transcript-header { color:var(--muted); font-size:.82rem; }
-.scene-transcript-text { white-space:pre-wrap; }
+.scene-transcript-text { color:var(--text); white-space:normal; line-height:1.55; }
+.scene-transcript-text > :first-child { margin-top:0; }
+.scene-transcript-text > :last-child { margin-bottom:0; }
+.scene-transcript-text p,
+.scene-transcript-text ul,
+.scene-transcript-text ol,
+.scene-transcript-text hr { margin:.5rem 0; }
+.scene-transcript-text em { font-style:italic; }
+.scene-transcript-item-a .scene-transcript-text em { color:var(--context); }
+.scene-transcript-item-b .scene-transcript-text em { color:var(--accent); }
 .scene-run-error { color:var(--error); }
 .scene-stop-button { width:auto; min-width:7rem; }
 .scene-run-rail-mobile { display:none; border:1px solid var(--line); background:var(--surface); }
