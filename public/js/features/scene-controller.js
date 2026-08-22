@@ -1,15 +1,17 @@
 import { loadModels, sendMessage, stopGeneration } from "../api.js";
-import { createSceneRunner } from "./scene-runner.mjs";
 import {
-  cloneSceneDraft,
-  createSceneId,
-  getCurrentPairNumber,
-  normalizeSceneDraft,
-  SCENE_STATUS,
-  SCENE_VIEW,
-  SCENE_WORKSPACE,
-  sortSceneBeats,
-} from "./scene-state.mjs";
+  applyBeatDelete,
+  applyBeatSave,
+  applyCharacterSave,
+  applySceneFieldChange,
+  applySceneWorkspace,
+  openSceneSetup,
+  prepareSceneStart,
+  returnSceneToRun,
+} from "./scene-actions.mjs";
+import { createSceneRunner } from "./scene-runner.mjs";
+import { SCENE_STATUS, SCENE_WORKSPACE } from "./scene-state-constants.mjs";
+import { cloneSceneDraft, normalizeSceneDraft } from "./scene-state-schema.mjs";
 import { loadSceneDraft, saveSceneDraft } from "./scene-storage.mjs";
 import { createSceneUi } from "./scene-ui.js";
 
@@ -18,39 +20,6 @@ function isStoppedError(error) {
     error instanceof Error &&
     (error.message === "Generation stopped." || error.status === 499)
   );
-}
-
-function clampExchangeCount(value, fallback, maximum = 50) {
-  const numericValue =
-    typeof value === "number"
-      ? value
-      : typeof value === "string"
-        ? Number.parseInt(value, 10)
-        : Number.NaN;
-
-  if (!Number.isInteger(numericValue)) {
-    return fallback;
-  }
-
-  return Math.min(maximum, Math.max(1, numericValue));
-}
-
-function buildBeatFromInput(input, fallbackPairNumber, maximumPairNumber, beatId = null) {
-  const pairNumber = clampExchangeCount(input.pairNumber, fallbackPairNumber, maximumPairNumber);
-  const text = typeof input.text === "string" ? input.text.trim() : "";
-
-  if (!text) {
-    return { error: "Direction text is required." };
-  }
-
-  return {
-    beat: {
-      id: beatId ?? createSceneId("beat"),
-      pairNumber,
-      moment: input.moment === "beforeA" || input.moment === "beforeB" ? input.moment : "pair",
-      text,
-    },
-  };
 }
 
 export function createSceneController({
@@ -122,63 +91,11 @@ export function createSceneController({
   }
 
   function setWorkspace(workspace) {
-    if (workspace === SCENE_WORKSPACE.CHAT && scene.view === SCENE_VIEW.RUN && [
-      SCENE_STATUS.GENERATING,
-      SCENE_STATUS.COOLING_DOWN,
-      SCENE_STATUS.PAUSED,
-      SCENE_STATUS.WAITING_FOR_CONTINUE,
-      SCENE_STATUS.ERROR,
-    ].includes(scene.status)) {
-      return;
-    }
-
-    updateScene({
-      ...scene,
-      workspace: workspace === SCENE_WORKSPACE.SCENE ? SCENE_WORKSPACE.SCENE : SCENE_WORKSPACE.CHAT,
-    });
+    updateScene(applySceneWorkspace(scene, workspace));
   }
 
   function handleFieldChange(fieldName, value) {
-    updateScene((currentScene) => {
-      const nextScene = cloneSceneDraft(currentScene);
-
-      switch (fieldName) {
-        case "title":
-          nextScene.title = value;
-          break;
-        case "globalInstruction":
-          nextScene.globalInstruction = value;
-          break;
-        case "context":
-          nextScene.context = value;
-          break;
-        case "model":
-          nextScene.model = typeof value === "string" ? value.trim() : "";
-          break;
-        case "exchangeCount":
-          nextScene.exchangeCount = clampExchangeCount(value, nextScene.exchangeCount);
-          nextScene.beats = sortSceneBeats(
-            nextScene.beats.map((beat) => ({
-              ...beat,
-              pairNumber: Math.min(nextScene.exchangeCount, beat.pairNumber),
-            })),
-          );
-          break;
-        case "firstSpeaker":
-          nextScene.firstSpeaker = value === "B" ? "B" : "A";
-          break;
-        case "runMode":
-          nextScene.runMode = value === "step" ? "step" : "auto";
-          break;
-        case "cooldownSeconds":
-          nextScene.cooldownSeconds = [2, 5, 10].includes(Number(value)) ? Number(value) : 5;
-          break;
-        default:
-          break;
-      }
-
-      return nextScene;
-    });
+    updateScene((currentScene) => applySceneFieldChange(currentScene, fieldName, value));
   }
 
   function openCharacterDialog(characterId) {
@@ -186,16 +103,9 @@ export function createSceneController({
   }
 
   function saveCharacter(characterId, characterDraft) {
-    updateScene((currentScene) => ({
-      ...currentScene,
-      characters: {
-        ...currentScene.characters,
-        [characterId]: {
-          name: characterDraft.name?.trim() || `Character ${characterId}`,
-          card: characterDraft.card ?? "",
-        },
-      },
-    }));
+    updateScene((currentScene) =>
+      applyCharacterSave(currentScene, characterId, characterDraft),
+    );
     ui.closeCharacterDialog();
   }
 
@@ -213,64 +123,32 @@ export function createSceneController({
   }
 
   function saveBeat(beatId, beatInput) {
-    const beatResult = buildBeatFromInput(
-      beatInput,
-      getCurrentPairNumber(scene),
-      scene.exchangeCount,
-      beatId,
-    );
+    const beatResult = applyBeatSave(scene, beatId, beatInput);
 
     if (beatResult.error) {
       ui.setBeatError(beatResult.error);
       return;
     }
 
-    updateScene((currentScene) => {
-      const existingBeats = currentScene.beats.filter((beat) => beat.id !== beatId);
-      return {
-        ...currentScene,
-        beats: sortSceneBeats([...existingBeats, beatResult.beat]),
-      };
-    });
+    updateScene(beatResult.scene);
 
     ui.closeBeatDialog();
   }
 
   function deleteBeat(beatId) {
-    updateScene((currentScene) => ({
-      ...currentScene,
-      beats: currentScene.beats.filter((beat) => beat.id !== beatId),
-    }));
+    updateScene((currentScene) => applyBeatDelete(currentScene, beatId));
   }
 
   function openSetup() {
-    updateScene({
-      ...scene,
-      view: SCENE_VIEW.SETUP,
-      workspace: SCENE_WORKSPACE.SCENE,
-    });
+    updateScene(openSceneSetup(scene));
   }
 
   function backToRun() {
-    updateScene({
-      ...scene,
-      view: SCENE_VIEW.RUN,
-      workspace: SCENE_WORKSPACE.SCENE,
-    });
+    updateScene(returnSceneToRun(scene));
   }
 
   function startScene() {
-    updateScene({
-      ...scene,
-      view: SCENE_VIEW.RUN,
-      workspace: SCENE_WORKSPACE.SCENE,
-      status: SCENE_STATUS.DRAFT,
-      transcript: [],
-      failedTurn: null,
-      lastError: "",
-      countdownRemainingMs: 0,
-      pauseRequested: false,
-    });
+    updateScene(prepareSceneStart(scene));
     runner.start();
   }
 

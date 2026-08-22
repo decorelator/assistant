@@ -1,4 +1,4 @@
-import { createDefaultSceneDraft, normalizeSceneDraft } from "./scene-state.mjs";
+import { createDefaultSceneDraft, normalizeSceneDraft } from "./scene-state-schema.mjs";
 
 const STORAGE_KEY = "ollama-assistant.scene-draft.v1";
 

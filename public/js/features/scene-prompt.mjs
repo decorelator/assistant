@@ -2,11 +2,8 @@ import {
   getSceneReplyBlocksForModelContext,
   serializeSceneReplyBlocks,
 } from "./scene-blocks.mjs";
-import {
-  getApplicableBeats,
-  getSpeakerOrder,
-  getTurnCharacter,
-} from "./scene-state.mjs";
+import { getApplicableBeats } from "./scene-state-beats.mjs";
+import { getSpeakerOrder, getTurnCharacter } from "./scene-state-selectors.mjs";
 
 function formatSection(title, value, fallback = "None.") {
   return `${title}:\n${value?.trim() ? value.trim() : fallback}`;

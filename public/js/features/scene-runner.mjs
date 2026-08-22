@@ -1,17 +1,18 @@
 import { parseSceneReplyBlocks } from "./scene-blocks.mjs";
 import { buildSceneTurnRequest } from "./scene-prompt.mjs";
+import { createSceneRunnerTimer } from "./scene-runner-timer.mjs";
 import {
-  cloneSceneDraft,
-  createSceneId,
+  SCENE_RUN_MODE,
+  SCENE_STATUS,
+  SCENE_VIEW,
+} from "./scene-state-constants.mjs";
+import { cloneSceneDraft, createSceneId, normalizeSceneDraft } from "./scene-state-schema.mjs";
+import {
   getNextTurn,
   getPairReplyCount,
   getTotalReplyCount,
   getTurnCharacter,
-  normalizeSceneDraft,
-  SCENE_RUN_MODE,
-  SCENE_STATUS,
-  SCENE_VIEW,
-} from "./scene-state.mjs";
+} from "./scene-state-selectors.mjs";
 
 function getErrorMessage(error) {
   return error instanceof Error ? error.message : "Scene generation failed.";
@@ -27,10 +28,26 @@ export function createSceneRunner({
   now = () => Date.now(),
 }) {
   let scene = normalizeSceneDraft(initialScene);
-  let cooldownTimerId = null;
-  let cooldownDeadline = 0;
   let activeTurnPromise = null;
   let stopRequested = false;
+
+  const cooldownTimer = createSceneRunnerTimer({
+    clearTimer,
+    now,
+    onComplete() {
+      void executeTurn();
+    },
+    onTick(remainingMs) {
+      updateScene({
+        ...scene,
+        countdownRemainingMs: remainingMs,
+      });
+    },
+    setTimer,
+    shouldContinue() {
+      return scene.status === SCENE_STATUS.COOLING_DOWN;
+    },
+  });
 
   function emitChange() {
     onChange(cloneSceneDraft(scene));
@@ -40,13 +57,6 @@ export function createSceneRunner({
     scene = normalizeSceneDraft(nextScene);
     emitChange();
     return scene;
-  }
-
-  function clearCooldownTimer() {
-    if (cooldownTimerId !== null) {
-      clearTimer(cooldownTimerId);
-      cooldownTimerId = null;
-    }
   }
 
   function setStoppedState() {
@@ -158,36 +168,12 @@ export function createSceneRunner({
   }
 
   function scheduleCooldown() {
-    clearCooldownTimer();
+    cooldownTimer.stop();
 
     if (scene.cooldownSeconds <= 0) {
       void executeTurn();
       return;
     }
-
-    cooldownDeadline = now() + scene.cooldownSeconds * 1000;
-
-    const tick = () => {
-      const remainingMs = Math.max(0, cooldownDeadline - now());
-
-      if (scene.status !== SCENE_STATUS.COOLING_DOWN) {
-        clearCooldownTimer();
-        return;
-      }
-
-      updateScene({
-        ...scene,
-        countdownRemainingMs: remainingMs,
-      });
-
-      if (remainingMs <= 0) {
-        clearCooldownTimer();
-        void executeTurn();
-        return;
-      }
-
-      cooldownTimerId = setTimer(tick, Math.min(250, remainingMs));
-    };
 
     updateScene({
       ...scene,
@@ -195,7 +181,7 @@ export function createSceneRunner({
       countdownRemainingMs: scene.cooldownSeconds * 1000,
     });
 
-    cooldownTimerId = setTimer(tick, 250);
+    cooldownTimer.start(scene.cooldownSeconds * 1000);
   }
 
   function continueAfterSuccessfulTurn() {
@@ -234,7 +220,7 @@ export function createSceneRunner({
   }
 
   function start() {
-    clearCooldownTimer();
+    cooldownTimer.stop();
     stopRequested = false;
 
     updateScene({
@@ -264,8 +250,8 @@ export function createSceneRunner({
       return false;
     }
 
-    const remainingMs = Math.max(0, cooldownDeadline - now());
-    clearCooldownTimer();
+    const remainingMs = cooldownTimer.getRemainingMs();
+    cooldownTimer.stop();
     updateScene({
       ...scene,
       status: SCENE_STATUS.PAUSED,
@@ -281,33 +267,12 @@ export function createSceneRunner({
     }
 
     if (scene.countdownRemainingMs > 0) {
-      clearCooldownTimer();
-      cooldownDeadline = now() + scene.countdownRemainingMs;
+      cooldownTimer.stop();
       updateScene({
         ...scene,
         status: SCENE_STATUS.COOLING_DOWN,
       });
-      cooldownTimerId = setTimer(function tick() {
-        const remainingMs = Math.max(0, cooldownDeadline - now());
-
-        if (scene.status !== SCENE_STATUS.COOLING_DOWN) {
-          clearCooldownTimer();
-          return;
-        }
-
-        updateScene({
-          ...scene,
-          countdownRemainingMs: remainingMs,
-        });
-
-        if (remainingMs <= 0) {
-          clearCooldownTimer();
-          void executeTurn();
-          return;
-        }
-
-        cooldownTimerId = setTimer(tick, Math.min(250, remainingMs));
-      }, 250);
+      cooldownTimer.start(scene.countdownRemainingMs);
       return true;
     }
 
@@ -335,7 +300,7 @@ export function createSceneRunner({
 
   async function stop() {
     stopRequested = true;
-    clearCooldownTimer();
+    cooldownTimer.stop();
 
     if (!activeTurnPromise) {
       setStoppedState();
@@ -348,7 +313,7 @@ export function createSceneRunner({
   }
 
   function dispose() {
-    clearCooldownTimer();
+    cooldownTimer.stop();
   }
 
   return {
