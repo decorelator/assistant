@@ -1,6 +1,11 @@
 import { renderMessageMarkdown } from "../message-markdown.mjs";
 import { formatModelOptionLabel, renderSelectOptions } from "../ui/selects.js";
 import {
+  getSceneReplyBlockTag,
+  normalizeSceneReplyBlocks,
+  SCENE_REPLY_BLOCK_TYPE,
+} from "./scene-blocks.mjs";
+import {
   canEditBeatInRun,
   getBeatProgressStatus,
   getCurrentSpeaker,
@@ -68,6 +73,31 @@ function setHidden(element, isHidden) {
   if (element) {
     element.hidden = isHidden;
   }
+}
+
+function renderTranscriptBlockContent(block) {
+  const body = document.createElement("div");
+  body.className = "scene-transcript-block-body";
+  body.innerHTML = renderMessageMarkdown(block.text);
+  return body;
+}
+
+function renderTranscriptBlock(block) {
+  const item = document.createElement("div");
+  item.className = `scene-transcript-block scene-transcript-block-${block.type}`;
+
+  const label = document.createElement("div");
+  label.className = "scene-transcript-block-label";
+  label.textContent = getSceneReplyBlockTag(block.type);
+
+  if (block.type === SCENE_REPLY_BLOCK_TYPE.THOUGHT) {
+    label.setAttribute("aria-label", "Private thought");
+  }
+
+  item.appendChild(label);
+  item.appendChild(renderTranscriptBlockContent(block));
+
+  return item;
 }
 
 function formatCountdown(countdownRemainingMs) {
@@ -173,6 +203,7 @@ export function createSceneUi() {
   const titleInput = document.querySelector("[data-scene-field='title']");
   const globalInstructionInput = document.querySelector("[data-scene-field='globalInstruction']");
   const contextInput = document.querySelector("[data-scene-field='context']");
+  const modelInput = document.querySelector("[data-scene-field='model']");
   const exchangeCountInput = document.querySelector("[data-scene-field='exchangeCount']");
   const firstSpeakerSelect = document.querySelector("[data-scene-field='firstSpeaker']");
   const runModeSelect = document.querySelector("[data-scene-field='runMode']");
@@ -202,7 +233,6 @@ export function createSceneUi() {
   const characterDialogTitle = document.querySelector("[data-scene-character-dialog-title]");
   const characterForm = document.querySelector("[data-scene-character-form]");
   const characterNameInput = document.querySelector("#scene-character-name-input");
-  const characterModelInput = document.querySelector("#scene-character-model-input");
   const characterCardInput = document.querySelector("#scene-character-card-input");
   const characterCancelButton = document.querySelector("[data-scene-character-cancel]");
   const beatDialog = document.querySelector("[data-scene-beat-dialog]");
@@ -239,7 +269,7 @@ export function createSceneUi() {
       });
     }
 
-    for (const field of [titleInput, globalInstructionInput, contextInput, exchangeCountInput, firstSpeakerSelect, runModeSelect, cooldownSelect]) {
+    for (const field of [titleInput, globalInstructionInput, contextInput, modelInput, exchangeCountInput, firstSpeakerSelect, runModeSelect, cooldownSelect]) {
       field?.addEventListener("input", () => {
         const fieldName = field.getAttribute("data-scene-field");
         if (fieldName) {
@@ -336,7 +366,6 @@ export function createSceneUi() {
 
       onSaveCharacter?.("save", editingCharacterId, {
         name: characterNameInput?.value ?? "",
-        model: characterModelInput?.value ?? "",
         card: characterCardInput?.value ?? "",
       });
     });
@@ -397,13 +426,14 @@ export function createSceneUi() {
     syncValue(titleInput, scene.title);
     syncValue(globalInstructionInput, scene.globalInstruction);
     syncValue(contextInput, scene.context);
+    syncValue(modelInput, scene.model);
     syncValue(exchangeCountInput, scene.exchangeCount);
     syncValue(firstSpeakerSelect, scene.firstSpeaker);
     syncValue(runModeSelect, scene.runMode);
     syncValue(cooldownSelect, scene.cooldownSeconds);
     setText(replyCountNote, `${scene.exchangeCount * 2} replies total.`);
 
-    for (const field of [titleInput, globalInstructionInput, contextInput, exchangeCountInput, firstSpeakerSelect, runModeSelect, cooldownSelect]) {
+    for (const field of [titleInput, globalInstructionInput, contextInput, modelInput, exchangeCountInput, firstSpeakerSelect, runModeSelect, cooldownSelect]) {
       if (field) {
         field.disabled = setupLocked;
       }
@@ -414,10 +444,6 @@ export function createSceneUi() {
       setText(
         document.querySelector(`[data-scene-character-name='${characterId}']`),
         character.name || getCharacterFallbackName(characterId),
-      );
-      setText(
-        document.querySelector(`[data-scene-character-model='${characterId}']`),
-        character.model || "Model not selected",
       );
       setText(
         document.querySelector(`[data-scene-character-preview='${characterId}']`),
@@ -466,9 +492,14 @@ export function createSceneUi() {
         header.className = "scene-transcript-header";
         header.textContent = `${line.characterName} • Pair ${line.pairNumber}${line.model ? ` • ${line.model}` : ""}`;
 
-        const text = document.createElement("p");
+        const text = document.createElement("div");
         text.className = "scene-transcript-text";
-        text.innerHTML = renderMessageMarkdown(line.text);
+
+        const blocks = normalizeSceneReplyBlocks(line.blocks, line.text);
+
+        for (const block of blocks) {
+          text.appendChild(renderTranscriptBlock(block));
+        }
 
         item.appendChild(header);
         item.appendChild(text);
@@ -512,21 +543,20 @@ export function createSceneUi() {
 
     if (generateButton instanceof HTMLButtonElement) {
       generateButton.disabled =
-        !scene.characters.A.model ||
-        !scene.characters.B.model ||
+        !scene.model ||
         !scene.characters.A.card.trim() ||
         !scene.characters.B.card.trim();
     }
 
-    renderSelectOptions(characterModelInput, availableModels, {
+    renderSelectOptions(modelInput, availableModels, {
       emptyLabel: "No models available",
       getValue: (model) => model?.name ?? "",
       getLabel: formatModelOptionLabel,
-      selectedValue: characterModelInput?.value ?? "",
+      selectedValue: modelInput?.value ?? "",
     });
   }
 
-  function openCharacterDialog(characterId, character, availableModels) {
+  function openCharacterDialog(characterId, character) {
     editingCharacterId = characterId;
     setText(
       characterDialogTitle,
@@ -534,12 +564,6 @@ export function createSceneUi() {
     );
     syncValue(characterNameInput, character.name || getCharacterFallbackName(characterId));
     syncValue(characterCardInput, character.card || "");
-    renderSelectOptions(characterModelInput, availableModels, {
-      emptyLabel: "No models available",
-      getValue: (model) => model?.name ?? "",
-      getLabel: formatModelOptionLabel,
-      selectedValue: character.model ?? "",
-    });
     characterDialog?.showModal();
     characterNameInput?.focus();
   }

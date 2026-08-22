@@ -32,7 +32,6 @@
 .scene-eyebrow,
 .scene-character-label,
 .scene-field-note,
-.scene-character-model,
 .scene-run-meta-value,
 .scene-beat-item-meta,
 .scene-empty-run { margin:0; color:var(--muted); }
@@ -59,7 +58,6 @@
 .scene-character-card { min-height:15rem; }
 .scene-card { border:1px solid var(--line); background:var(--surface-strong); padding:12px; display:grid; gap:10px; min-width:0; }
 .scene-character-name,
-.scene-character-model,
 .scene-transcript-header,
 .scene-run-pair { overflow-wrap:anywhere; word-break:break-word; }
 .scene-character-preview,
@@ -127,15 +125,36 @@
 .scene-transcript-item-a { border-left:4px solid var(--context); }
 .scene-transcript-header { color:var(--muted); font-size:.82rem; }
 .scene-transcript-text { color:var(--text); white-space:normal; line-height:1.55; }
-.scene-transcript-text > :first-child { margin-top:0; }
-.scene-transcript-text > :last-child { margin-bottom:0; }
-.scene-transcript-text p,
-.scene-transcript-text ul,
-.scene-transcript-text ol,
-.scene-transcript-text hr { margin:.5rem 0; }
-.scene-transcript-text em { font-style:italic; }
-.scene-transcript-item-a .scene-transcript-text em { color:var(--context); }
-.scene-transcript-item-b .scene-transcript-text em { color:var(--accent); }
+.scene-transcript-blocks,
+.scene-transcript-text { display:grid; gap:10px; }
+.scene-transcript-block { display:grid; gap:4px; }
+.scene-transcript-block-label {
+  color:var(--muted);
+  font-size:.72rem;
+  font-weight:700;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+}
+.scene-transcript-block-body > :first-child { margin-top:0; }
+.scene-transcript-block-body > :last-child { margin-bottom:0; }
+.scene-transcript-block-body p,
+.scene-transcript-block-body ul,
+.scene-transcript-block-body ol,
+.scene-transcript-block-body hr { margin:.5rem 0; }
+.scene-transcript-block-action .scene-transcript-block-body { font-weight:700; }
+.scene-transcript-block-thought .scene-transcript-block-label,
+.scene-transcript-block-thought .scene-transcript-block-body {
+  font-style:italic;
+  font-weight:400;
+}
+.scene-transcript-item-a .scene-transcript-block-action .scene-transcript-block-label,
+.scene-transcript-item-a .scene-transcript-block-action .scene-transcript-block-body,
+.scene-transcript-item-a .scene-transcript-block-thought .scene-transcript-block-label,
+.scene-transcript-item-a .scene-transcript-block-thought .scene-transcript-block-body { color:var(--context); }
+.scene-transcript-item-b .scene-transcript-block-action .scene-transcript-block-label,
+.scene-transcript-item-b .scene-transcript-block-action .scene-transcript-block-body,
+.scene-transcript-item-b .scene-transcript-block-thought .scene-transcript-block-label,
+.scene-transcript-item-b .scene-transcript-block-thought .scene-transcript-block-body { color:var(--accent); }
 .scene-run-error { color:var(--error); }
 .scene-stop-button { width:auto; min-width:7rem; }
 .scene-run-rail-mobile { display:none; border:1px solid var(--line); background:var(--surface); }

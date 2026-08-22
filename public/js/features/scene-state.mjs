@@ -1,3 +1,8 @@
+import {
+  normalizeSceneReplyBlocks,
+  serializeSceneReplyBlocks,
+} from "./scene-blocks.mjs";
+
 export const SCENE_WORKSPACE = {
   CHAT: "chat",
   SCENE: "scene",
@@ -98,7 +103,6 @@ function asBeatMoment(value) {
 function createDefaultCharacter(characterId) {
   return {
     name: `Character ${characterId}`,
-    model: "",
     card: "",
   };
 }
@@ -108,9 +112,22 @@ function normalizeCharacter(value, characterId) {
 
   return {
     name: asString(source.name, `Character ${characterId}`) || `Character ${characterId}`,
-    model: asString(source.model).trim(),
     card: asString(source.card),
   };
+}
+
+function getLegacySceneModel(source) {
+  if (typeof source?.model === "string" && source.model.trim()) {
+    return source.model.trim();
+  }
+
+  for (const model of [source?.characters?.A?.model, source?.characters?.B?.model]) {
+    if (typeof model === "string" && model.trim()) {
+      return model.trim();
+    }
+  }
+
+  return "";
 }
 
 function normalizeTranscriptEntry(value) {
@@ -120,8 +137,10 @@ function normalizeTranscriptEntry(value) {
 
   const speaker = asSpeaker(value.speaker);
   const text = asString(value.text).trim();
+  const blocks = normalizeSceneReplyBlocks(value.blocks, text);
+  const normalizedText = text || serializeSceneReplyBlocks(blocks);
 
-  if (!text) {
+  if (!normalizedText) {
     return null;
   }
 
@@ -131,7 +150,8 @@ function normalizeTranscriptEntry(value) {
     speaker,
     characterName: asString(value.characterName, `Character ${speaker}`) || `Character ${speaker}`,
     model: asString(value.model).trim(),
-    text,
+    text: normalizedText,
+    blocks,
   };
 }
 
@@ -194,6 +214,7 @@ export function createDefaultSceneDraft() {
     title: "",
     globalInstruction: "",
     context: "",
+    model: "",
     exchangeCount: DEFAULT_EXCHANGE_COUNT,
     firstSpeaker: "A",
     runMode: SCENE_RUN_MODE.AUTO,
@@ -224,6 +245,7 @@ export function normalizeSceneDraft(value, options = {}) {
     title: asString(source.title),
     globalInstruction: asString(source.globalInstruction),
     context: asString(source.context),
+    model: getLegacySceneModel(source),
     exchangeCount: clampInteger(source.exchangeCount, baseDraft.exchangeCount, 1, 50),
     firstSpeaker: asSpeaker(source.firstSpeaker),
     runMode: asRunMode(source.runMode),
@@ -369,7 +391,11 @@ export function canEditBeatInRun(scene, beat) {
     scene.status !== SCENE_STATUS.WAITING_FOR_CONTINUE &&
     scene.status !== SCENE_STATUS.ERROR
   ) {
-    return scene.status === SCENE_STATUS.DRAFT || scene.status === SCENE_STATUS.STOPPED;
+    return (
+      scene.status === SCENE_STATUS.DRAFT ||
+      scene.status === SCENE_STATUS.STOPPED ||
+      scene.status === SCENE_STATUS.COMPLETED
+    );
   }
 
   return !isBeatApplied(scene, beat);

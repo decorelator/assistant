@@ -1,4 +1,8 @@
 import {
+  getSceneReplyBlocksForModelContext,
+  serializeSceneReplyBlocks,
+} from "./scene-blocks.mjs";
+import {
   getApplicableBeats,
   getSpeakerOrder,
   getTurnCharacter,
@@ -13,9 +17,21 @@ export function formatSceneTranscript(scene) {
     return "No dialogue yet.";
   }
 
-  return scene.transcript
-    .map((entry) => `${entry.characterName || `Character ${entry.speaker}`}:\n${entry.text}`)
+  const transcript = scene.transcript
+    .map((entry) => {
+      const visibleBlocks = getSceneReplyBlocksForModelContext(entry.blocks, entry.text);
+      const visibleText = serializeSceneReplyBlocks(visibleBlocks);
+
+      if (!visibleText) {
+        return null;
+      }
+
+      return `${entry.characterName || `Character ${entry.speaker}`}:\n${visibleText}`;
+    })
+    .filter(Boolean)
     .join("\n\n");
+
+  return transcript || "No dialogue yet.";
 }
 
 export function buildSceneTurnRequest(scene, turn) {
@@ -42,7 +58,11 @@ export function buildSceneTurnRequest(scene, turn) {
     `You are ${character.name}.`,
     `Stay fully in ${character.name}'s point of view and voice.`,
     `You may include ${character.name}'s spoken dialogue, inner thoughts, and action descriptions when they fit the scene.`,
+    `${character.name}'s [THOUGHT] blocks are private notes. They are not visible to ${otherCharacter.name} and they are not included in later dialogue history for either character.`,
     `Do not write dialogue, thoughts, or actions for ${otherCharacter.name}.`,
+    "Return only the next turn as one or more tagged blocks.",
+    "Allowed tags: [SAY] for spoken dialogue, [ACTION] for visible actions/gestures/expressions/behavior, [THOUGHT] for private inner thoughts.",
+    "Keep the block order chronological. You may repeat the same tag multiple times. Do not use any other tags or speaker labels.",
     formatSection("Character card", character.card, "No extra character card."),
   ].join("\n\n");
 
@@ -58,7 +78,7 @@ export function buildSceneTurnRequest(scene, turn) {
   ].join("\n\n");
 
   return {
-    model: character.model,
+    model: scene.model,
     instruction,
     prompt,
     appliedBeatIds: appliedBeats.map((beat) => beat.id),

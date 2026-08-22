@@ -1,3 +1,4 @@
+import { parseSceneReplyBlocks } from "./scene-blocks.mjs";
 import { buildSceneTurnRequest } from "./scene-prompt.mjs";
 import {
   cloneSceneDraft,
@@ -103,6 +104,7 @@ export function createSceneRunner({
         return false;
       }
 
+      const normalizedReplyText = replyText || "No response from model.";
       const character = getTurnCharacter(scene, turn.speaker);
       const nextTranscript = [
         ...scene.transcript,
@@ -112,7 +114,8 @@ export function createSceneRunner({
           speaker: turn.speaker,
           characterName: character.name,
           model: request.model,
-          text: replyText || "No response from model.",
+          text: normalizedReplyText,
+          blocks: parseSceneReplyBlocks(normalizedReplyText),
         },
       ];
 

@@ -71,8 +71,7 @@ export function createSceneController({
           request.model,
           getSelectedChatModel(),
           getLastUsedModel(),
-          sceneSnapshot.characters.A.model,
-          sceneSnapshot.characters.B.model,
+          sceneSnapshot.model,
         );
         const reply = await sendMessage(
           request.model,
@@ -153,6 +152,9 @@ export function createSceneController({
         case "context":
           nextScene.context = value;
           break;
+        case "model":
+          nextScene.model = typeof value === "string" ? value.trim() : "";
+          break;
         case "exchangeCount":
           nextScene.exchangeCount = clampExchangeCount(value, nextScene.exchangeCount);
           nextScene.beats = sortSceneBeats(
@@ -180,7 +182,7 @@ export function createSceneController({
   }
 
   function openCharacterDialog(characterId) {
-    ui.openCharacterDialog(characterId, scene.characters[characterId], availableModels);
+    ui.openCharacterDialog(characterId, scene.characters[characterId]);
   }
 
   function saveCharacter(characterId, characterDraft) {
@@ -190,7 +192,6 @@ export function createSceneController({
         ...currentScene.characters,
         [characterId]: {
           name: characterDraft.name?.trim() || `Character ${characterId}`,
-          model: characterDraft.model?.trim() || "",
           card: characterDraft.card ?? "",
         },
       },

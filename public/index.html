@@ -81,7 +81,6 @@
                         Edit
                       </button>
                     </div>
-                    <p class="scene-character-model" data-scene-character-model="A">Model not selected</p>
                     <p class="scene-character-preview" data-scene-character-preview="A">
                       Add a card to define this speaker. (Reminder: Character A is the male character.)
                     </p>
@@ -101,7 +100,6 @@
                         Edit
                       </button>
                     </div>
-                    <p class="scene-character-model" data-scene-character-model="B">Model not selected</p>
                     <p class="scene-character-preview" data-scene-character-preview="B">
                       Add a card to define this speaker. (Reminder: Character B is the female character.)
                     </p>
@@ -146,6 +144,14 @@
                       data-scene-field="context"
                       placeholder="Describe the setting, the tension, and what both characters already know..."
                     ></textarea>
+                  </div>
+
+                  <div class="field">
+                    <label class="label" for="scene-model">Model</label>
+                    <select id="scene-model" data-scene-field="model">
+                      <option value="">Select a model</option>
+                    </select>
+                    <p class="scene-field-note">One shared model is used for both characters in this version.</p>
                   </div>
 
                   <div class="field">
@@ -350,8 +356,6 @@
         <h2 class="dialog-title" data-scene-character-dialog-title>Edit character</h2>
         <label class="label" for="scene-character-name-input">Name</label>
         <input id="scene-character-name-input" name="name" type="text" maxlength="80" />
-        <label class="label" for="scene-character-model-input">Model</label>
-        <select id="scene-character-model-input" name="model"></select>
         <label class="label" for="scene-character-card-input">Character card</label>
         <textarea
           id="scene-character-card-input"

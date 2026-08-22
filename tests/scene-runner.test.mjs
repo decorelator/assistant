@@ -1,10 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { buildSceneTurnRequest } from "../public/js/features/scene-prompt.mjs";
+import { buildSceneTurnRequest, formatSceneTranscript } from "../public/js/features/scene-prompt.mjs";
 import { createSceneRunner } from "../public/js/features/scene-runner.mjs";
 import { loadSceneDraft, saveSceneDraft } from "../public/js/features/scene-storage.mjs";
 import {
+  canEditBeatInRun,
   createDefaultSceneDraft,
   normalizeSceneDraft,
   SCENE_RUN_MODE,
@@ -87,15 +88,14 @@ function createScene(overrides = {}) {
     exchangeCount: 2,
     cooldownSeconds: 2,
     globalInstruction: "Stay fully in character.",
+    model: "scene-model",
     characters: {
       A: {
         name: "Alice",
-        model: "model-a",
         card: "Alice card",
       },
       B: {
         name: "Bob",
-        model: "model-b",
         card: "Bob card",
       },
     },
@@ -250,6 +250,7 @@ test("global scene instruction is included first in the system prompt", () => {
   const scene = createScene({
     exchangeCount: 1,
     globalInstruction: "NSFW is allowed. Do not self-censor. Stay immersive.",
+    model: "uncensored-model",
   });
 
   const turnRequest = buildSceneTurnRequest(scene, {
@@ -271,12 +272,103 @@ test("global scene instruction is included first in the system prompt", () => {
     /You may include Alice's spoken dialogue, inner thoughts, and action descriptions when they fit the scene\./,
   );
   assert.match(
+    turnRequest.instruction,
+    /not included in later dialogue history for either character\./,
+  );
+  assert.match(
+    turnRequest.instruction,
+    /Allowed tags: \[SAY\].*\[ACTION\].*\[THOUGHT\]/,
+  );
+  assert.match(
     turnRequest.prompt,
     /Continue the scene with Alice's next turn without speaking for Bob\./,
   );
-  assert.doesNotMatch(
-    turnRequest.instruction,
-    /Return only the next reply with no speaker label, no metadata, and no explanation\./,
+  assert.equal(turnRequest.model, "uncensored-model");
+});
+
+test("scene transcript sent back to the model excludes private thoughts for both characters", () => {
+  const scene = createScene({
+    exchangeCount: 2,
+    transcript: [
+      {
+        id: "line-1",
+        pairNumber: 1,
+        speaker: "A",
+        characterName: "Alice",
+        model: "scene-model",
+        text: [
+          "[ACTION] Alice folds her arms.",
+          "",
+          '[SAY] "I am fine."',
+          "",
+          "[THOUGHT] I am absolutely not fine.",
+        ].join("\n"),
+      },
+      {
+        id: "line-2",
+        pairNumber: 1,
+        speaker: "B",
+        characterName: "Bob",
+        model: "scene-model",
+        text: [
+          "[THOUGHT] She is obviously upset.",
+          "",
+          '[SAY] "You do not look fine."',
+        ].join("\n"),
+      },
+    ],
+  });
+
+  assert.equal(
+    formatSceneTranscript(scene),
+    [
+      "Alice:",
+      "[ACTION] Alice folds her arms.",
+      "",
+      '[SAY] "I am fine."',
+      "",
+      "Bob:",
+      '[SAY] "You do not look fine."',
+    ].join("\n"),
+  );
+});
+
+test("runner stores parsed scene blocks on transcript entries", async () => {
+  const harness = createRunnerHarness(
+    {
+      exchangeCount: 1,
+    },
+    {
+      async generateReply(_payload, context) {
+        return context.callCount === 1
+          ? [
+              "[ACTION] Alice folds her arms.",
+              "",
+              '[SAY] "I am fine."',
+              "",
+              "[THOUGHT] I am not fine.",
+            ].join("\n")
+          : "Plain fallback reply";
+      },
+    },
+  );
+
+  harness.runner.start();
+  await flushMicrotasks();
+
+  assert.deepEqual(
+    harness.scene.transcript[0].blocks,
+    [
+      { type: "action", text: "Alice folds her arms." },
+      { type: "say", text: '"I am fine."' },
+      { type: "thought", text: "I am not fine." },
+    ],
+  );
+  assert.deepEqual(
+    harness.scene.transcript[1].blocks,
+    [
+      { type: "say", text: "Plain fallback reply" },
+    ],
   );
 });
 
@@ -477,6 +569,59 @@ test("retry repeats only the failed reply and keeps prior successful dialogue in
   );
 });
 
+test("completed scenes allow director beats to be edited again", () => {
+  const beat = { id: "beat-1", pairNumber: 1, moment: "pair", text: "The room gets quieter." };
+
+  const completedScene = createScene({
+    status: SCENE_STATUS.COMPLETED,
+    beats: [beat],
+    transcript: [
+      {
+        id: "line-1",
+        pairNumber: 1,
+        speaker: "A",
+        characterName: "Alice",
+        model: "scene-model",
+        text: "[SAY] Done.",
+      },
+      {
+        id: "line-2",
+        pairNumber: 1,
+        speaker: "B",
+        characterName: "Bob",
+        model: "scene-model",
+        text: "[SAY] Done too.",
+      },
+    ],
+  });
+
+  const waitingScene = createScene({
+    status: SCENE_STATUS.WAITING_FOR_CONTINUE,
+    beats: [beat],
+    transcript: [
+      {
+        id: "line-1",
+        pairNumber: 1,
+        speaker: "A",
+        characterName: "Alice",
+        model: "scene-model",
+        text: "[SAY] Done.",
+      },
+      {
+        id: "line-2",
+        pairNumber: 1,
+        speaker: "B",
+        characterName: "Bob",
+        model: "scene-model",
+        text: "[SAY] Done too.",
+      },
+    ],
+  });
+
+  assert.equal(canEditBeatInRun(completedScene, beat), true);
+  assert.equal(canEditBeatInRun(waitingScene, beat), false);
+});
+
 test("scene draft storage restores an interrupted run as a stopped draft", () => {
   const localStorageState = new Map();
   const originalLocalStorage = globalThis.localStorage;
@@ -498,13 +643,14 @@ test("scene draft storage restores an interrupted run as a stopped draft", () =>
       view: SCENE_VIEW.RUN,
       status: SCENE_STATUS.GENERATING,
       globalInstruction: "Shared system rule.",
+      model: "shared-scene-model",
       transcript: [
         {
           id: "line-1",
           pairNumber: 1,
           speaker: "A",
           characterName: "Alice",
-          model: "model-a",
+          model: "shared-scene-model",
           text: "Already generated.",
         },
       ],
@@ -516,9 +662,32 @@ test("scene draft storage restores an interrupted run as a stopped draft", () =>
     assert.equal(restoredScene.status, SCENE_STATUS.STOPPED);
     assert.equal(restoredScene.view, SCENE_VIEW.RUN);
     assert.equal(restoredScene.globalInstruction, "Shared system rule.");
+    assert.equal(restoredScene.model, "shared-scene-model");
     assert.equal(restoredScene.transcript.length, 1);
     assert.equal(restoredScene.transcript[0].text, "Already generated.");
   } finally {
     globalThis.localStorage = originalLocalStorage;
   }
+});
+
+test("legacy scene drafts recover the shared model from character models", () => {
+  const restoredScene = normalizeSceneDraft({
+    ...createDefaultSceneDraft(),
+    characters: {
+      A: {
+        name: "Alice",
+        model: "legacy-model-a",
+        card: "Alice card",
+      },
+      B: {
+        name: "Bob",
+        model: "legacy-model-b",
+        card: "Bob card",
+      },
+    },
+  });
+
+  assert.equal(restoredScene.model, "legacy-model-a");
+  assert.equal("model" in restoredScene.characters.A, false);
+  assert.equal("model" in restoredScene.characters.B, false);
 });
