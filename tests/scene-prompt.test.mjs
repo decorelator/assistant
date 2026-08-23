@@ -54,6 +54,18 @@ test("global scene instruction is included first in the system prompt", () => {
     exchangeCount: 1,
     globalInstruction: "NSFW is allowed. Do not self-censor. Stay immersive.",
     model: "uncensored-model",
+    characters: {
+      A: {
+        name: "Alice",
+        gender: "female",
+        age: 34,
+        card: "A sharp investigator.",
+      },
+      B: {
+        name: "Bob",
+        card: "A patient archivist.",
+      },
+    },
   });
 
   const turnRequest = buildSceneTurnRequest(scene, {
@@ -69,6 +81,10 @@ test("global scene instruction is included first in the system prompt", () => {
   assert.ok(
     turnRequest.instruction.indexOf("Global scene instruction:") <
       turnRequest.instruction.indexOf("Character card:"),
+  );
+  assert.match(
+    turnRequest.instruction,
+    /Character metadata:\nName: Alice\nGender: female\nAge: 34 years old/,
   );
   assert.match(
     turnRequest.instruction,

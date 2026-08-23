@@ -66,16 +66,57 @@ function asBeatMoment(value) {
 function createDefaultCharacter(characterId) {
   return {
     name: `Character ${characterId}`,
+    gender: "",
+    age: null,
     card: "",
+    sourceCardId: null,
+    sourceCardTitle: "",
+    tags: [],
+  };
+}
+
+function normalizeCharacterTag(value) {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const name = asString(value.name).trim();
+
+  if (!name) {
+    return null;
+  }
+
+  return {
+    id: typeof value.id === "number" && Number.isInteger(value.id) && value.id > 0 ? value.id : null,
+    name,
+    kind: asString(value.kind, "custom").trim() || "custom",
   };
 }
 
 function normalizeCharacter(value, characterId) {
   const source = value && typeof value === "object" ? value : {};
+  const sourceCardId =
+    typeof source.sourceCardId === "number" && Number.isInteger(source.sourceCardId) && source.sourceCardId > 0
+      ? source.sourceCardId
+      : null;
+  const tags = Array.isArray(source.tags) ? source.tags.map(normalizeCharacterTag).filter(Boolean) : [];
+  const legacyGenderTag = tags.find((tag) => tag.kind === "gender");
+  const legacyAgeTag = tags.find((tag) => tag.kind === "age");
+  const age =
+    typeof source.age === "number" && Number.isInteger(source.age) && source.age > 0
+      ? source.age
+      : legacyAgeTag
+        ? clampInteger(legacyAgeTag.name, null, 1, 999)
+        : null;
 
   return {
     name: asString(source.name, `Character ${characterId}`) || `Character ${characterId}`,
+    gender: asString(source.gender, legacyGenderTag?.name ?? ""),
+    age,
     card: asString(source.card),
+    sourceCardId,
+    sourceCardTitle: asString(source.sourceCardTitle),
+    tags: tags.filter((tag) => tag.kind !== "gender" && tag.kind !== "age"),
   };
 }
 

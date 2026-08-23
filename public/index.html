@@ -61,50 +61,12 @@
                   <div>
                     <h3 class="scene-section-title">Characters</h3>
                     <p class="scene-section-copy">
-                      Two compact cards drive the alternating dialogue. Full cards open in a dialog.
+                      Compact character slots drive the dialogue. Full cards open in a dialog.
                     </p>
                   </div>
                 </div>
 
-                <div class="scene-character-grid">
-                  <article class="scene-card scene-character-card" data-scene-character-card="A">
-                    <div class="scene-character-card-header">
-                      <div>
-                        <p class="scene-character-label">Character A</p>
-                        <h4 class="scene-character-name" data-scene-character-name="A">Character A</h4>
-                      </div>
-                      <button
-                        type="button"
-                        class="button-secondary scene-compact-button"
-                        data-scene-edit-character="A"
-                      >
-                        Edit
-                      </button>
-                    </div>
-                    <p class="scene-character-preview" data-scene-character-preview="A">
-                      Add a card to define this speaker. (Reminder: Character A is the male character.)
-                    </p>
-                  </article>
-
-                  <article class="scene-card scene-character-card" data-scene-character-card="B">
-                    <div class="scene-character-card-header">
-                      <div>
-                        <p class="scene-character-label">Character B</p>
-                        <h4 class="scene-character-name" data-scene-character-name="B">Character B</h4>
-                      </div>
-                      <button
-                        type="button"
-                        class="button-secondary scene-compact-button"
-                        data-scene-edit-character="B"
-                      >
-                        Edit
-                      </button>
-                    </div>
-                    <p class="scene-character-preview" data-scene-character-preview="B">
-                      Add a card to define this speaker. (Reminder: Character B is the female character.)
-                    </p>
-                  </article>
-                </div>
+                <div class="scene-character-grid" data-scene-character-grid></div>
               </section>
 
               <section class="scene-section">
@@ -351,11 +313,125 @@
       </section>
     </main>
 
-    <dialog class="dialog scene-dialog" data-scene-character-dialog>
+    <dialog class="dialog scene-dialog scene-character-dialog" data-scene-character-dialog>
       <form class="dialog-form scene-dialog-form" data-scene-character-form>
-        <h2 class="dialog-title" data-scene-character-dialog-title>Edit character</h2>
+        <div class="scene-editor-header">
+          <div>
+            <h2 class="dialog-title" data-scene-character-dialog-title>Edit character</h2>
+            <p class="scene-character-source" data-scene-character-source>Scene copy</p>
+          </div>
+          <button
+            type="button"
+            class="button-secondary scene-compact-button"
+            data-scene-character-open-library
+          >
+            Library
+          </button>
+        </div>
+        <label class="label" for="scene-character-title-input">Card title</label>
+        <input
+          id="scene-character-title-input"
+          name="title"
+          type="text"
+          maxlength="120"
+          placeholder="Unique saved card title"
+        />
         <label class="label" for="scene-character-name-input">Name</label>
         <input id="scene-character-name-input" name="name" type="text" maxlength="80" />
+        <fieldset class="scene-fieldset">
+          <legend class="label">Gender</legend>
+          <div class="scene-radio-grid" data-scene-character-gender-group>
+            <label class="scene-radio-option">
+              <input type="radio" name="gender" value="" data-scene-character-gender />
+              <span>Not set</span>
+            </label>
+            <label class="scene-radio-option">
+              <input type="radio" name="gender" value="male" data-scene-character-gender />
+              <span>Male</span>
+            </label>
+            <label class="scene-radio-option">
+              <input type="radio" name="gender" value="female" data-scene-character-gender />
+              <span>Female</span>
+            </label>
+            <label class="scene-radio-option">
+              <input type="radio" name="gender" value="non-binary" data-scene-character-gender />
+              <span>Non-binary</span>
+            </label>
+            <label class="scene-radio-option">
+              <input type="radio" name="gender" value="other" data-scene-character-gender />
+              <span>Other</span>
+            </label>
+          </div>
+        </fieldset>
+        <label class="label" for="scene-character-age-input">Age</label>
+        <input
+          id="scene-character-age-input"
+          name="age"
+          type="number"
+          min="1"
+          max="999"
+          step="1"
+          placeholder="Not set"
+        />
+        <section class="scene-tag-editor-group" data-scene-tag-editor="trait">
+          <div class="scene-tag-editor-heading">
+            <h3 class="scene-tag-editor-title">Traits</h3>
+            <input
+              type="text"
+              maxlength="80"
+              placeholder="+ Add trait"
+              aria-label="Add trait"
+              data-scene-tag-editor-input="trait"
+            />
+          </div>
+          <div class="scene-tag-editor-chips" data-scene-tag-editor-chips="trait"></div>
+          <div class="scene-tag-editor-suggestions" data-scene-tag-editor-suggestions="trait"></div>
+        </section>
+
+        <section class="scene-tag-editor-group" data-scene-tag-editor="role">
+          <div class="scene-tag-editor-heading">
+            <h3 class="scene-tag-editor-title">Role</h3>
+            <input
+              type="text"
+              maxlength="80"
+              placeholder="+ Add role"
+              aria-label="Add role"
+              data-scene-tag-editor-input="role"
+            />
+          </div>
+          <div class="scene-tag-editor-chips" data-scene-tag-editor-chips="role"></div>
+          <div class="scene-tag-editor-suggestions" data-scene-tag-editor-suggestions="role"></div>
+        </section>
+
+        <section class="scene-tag-editor-group" data-scene-tag-editor="setting">
+          <div class="scene-tag-editor-heading">
+            <h3 class="scene-tag-editor-title">Setting</h3>
+            <input
+              type="text"
+              maxlength="80"
+              placeholder="+ Add setting"
+              aria-label="Add setting"
+              data-scene-tag-editor-input="setting"
+            />
+          </div>
+          <div class="scene-tag-editor-chips" data-scene-tag-editor-chips="setting"></div>
+          <div class="scene-tag-editor-suggestions" data-scene-tag-editor-suggestions="setting"></div>
+        </section>
+
+        <section class="scene-tag-editor-group" data-scene-tag-editor="custom">
+          <div class="scene-tag-editor-heading">
+            <h3 class="scene-tag-editor-title">Other</h3>
+            <input
+              type="text"
+              maxlength="80"
+              placeholder="+ Add tag"
+              aria-label="Add tag"
+              data-scene-tag-editor-input="custom"
+            />
+          </div>
+          <div class="scene-tag-editor-chips" data-scene-tag-editor-chips="custom"></div>
+          <div class="scene-tag-editor-suggestions" data-scene-tag-editor-suggestions="custom"></div>
+        </section>
         <label class="label" for="scene-character-card-input">Character card</label>
         <textarea
           id="scene-character-card-input"
@@ -363,11 +439,43 @@
           class="scene-character-card-input"
           placeholder="Write the full character card or instruction here..."
         ></textarea>
+        <p class="form-error" data-scene-character-error hidden></p>
         <div class="actions">
           <button type="button" class="button-secondary" data-scene-character-cancel>Cancel</button>
+          <button type="button" class="button-secondary" data-scene-character-save-library>
+            Save to library
+          </button>
           <button type="submit">Save</button>
         </div>
       </form>
+    </dialog>
+
+    <dialog class="dialog scene-dialog scene-library-dialog" data-scene-character-library-dialog>
+      <section class="dialog-form scene-dialog-form scene-library-panel">
+        <div class="scene-library-header">
+          <div>
+            <h2 class="dialog-title">Choose character</h2>
+            <p class="scene-section-copy" data-scene-character-library-target>For Character A</p>
+          </div>
+          <button
+            type="button"
+            class="button-secondary scene-compact-button"
+            data-scene-character-library-close
+          >
+            Close
+          </button>
+        </div>
+
+        <input
+          type="search"
+          data-scene-character-library-search
+          placeholder="Search characters..."
+          aria-label="Search characters"
+        />
+        <div class="scene-tag-filter-list" data-scene-character-library-tags></div>
+        <p class="form-error" data-scene-character-library-error hidden></p>
+        <div class="scene-library-list" data-scene-character-library-list></div>
+      </section>
     </dialog>
 
     <dialog class="dialog scene-dialog" data-scene-beat-dialog>

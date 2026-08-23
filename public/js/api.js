@@ -97,6 +97,46 @@ export async function deleteInstructionPreset(id) {
   });
 }
 
+export async function loadCharacterCards({ q = "", tagIds = [] } = {}) {
+  const params = new URLSearchParams();
+
+  if (q.trim()) {
+    params.set("q", q.trim());
+  }
+
+  if (tagIds.length > 0) {
+    params.set("tags", tagIds.join(","));
+  }
+
+  const data = await requestJson(`/api/character-cards${params.size ? `?${params}` : ""}`);
+  return Array.isArray(data.cards) ? data.cards : [];
+}
+
+export async function createCharacterCard(card) {
+  const data = await requestJson("/api/character-cards", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(card),
+  });
+
+  return data.card ?? null;
+}
+
+export async function updateCharacterCard(id, card) {
+  const data = await requestJson(`/api/character-cards/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(card),
+  });
+
+  return data.card ?? null;
+}
+
+export async function loadCharacterTags() {
+  const data = await requestJson("/api/character-tags");
+  return Array.isArray(data.tags) ? data.tags : [];
+}
+
 export async function sendMessage(
   model,
   prompt,

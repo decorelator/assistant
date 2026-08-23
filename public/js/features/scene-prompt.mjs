@@ -9,6 +9,38 @@ function formatSection(title, value, fallback = "None.") {
   return `${title}:\n${value?.trim() ? value.trim() : fallback}`;
 }
 
+function formatCharacterGender(value) {
+  const normalizedValue = typeof value === "string" ? value.trim().toLowerCase() : "";
+  const genderLabels = {
+    "муж": "male",
+    "жен": "female",
+    "небинарн": "non-binary",
+    "другое": "other",
+    "male": "male",
+    "female": "female",
+    "non-binary": "non-binary",
+    "other": "other",
+  };
+
+  return genderLabels[normalizedValue] ?? normalizedValue;
+}
+
+function formatCharacterAge(value) {
+  return Number.isInteger(value) && value > 0 ? `${value} years old` : "";
+}
+
+function formatCharacterMetadata(character) {
+  const gender = formatCharacterGender(character.gender);
+  const age = formatCharacterAge(character.age);
+  const lines = [
+    `Name: ${character.name || "Unknown"}`,
+    gender ? `Gender: ${gender}` : "",
+    age ? `Age: ${age}` : "",
+  ].filter(Boolean);
+
+  return lines.join("\n");
+}
+
 export function formatSceneTranscript(scene) {
   if (scene.transcript.length === 0) {
     return "No dialogue yet.";
@@ -60,6 +92,7 @@ export function buildSceneTurnRequest(scene, turn) {
     "Return only the next turn as one or more tagged blocks.",
     "Allowed tags: [SAY] for spoken dialogue, [ACTION] for visible actions/gestures/expressions/behavior, [THOUGHT] for private inner thoughts.",
     "Keep the block order chronological. You may repeat the same tag multiple times. Do not use any other tags or speaker labels.",
+    formatSection("Character metadata", formatCharacterMetadata(character)),
     formatSection("Character card", character.card, "No extra character card."),
   ].join("\n\n");
 

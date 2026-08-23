@@ -1,4 +1,12 @@
-import { loadModels, sendMessage, stopGeneration } from "../api.js";
+import {
+  createCharacterCard,
+  loadCharacterCards,
+  loadCharacterTags,
+  loadModels,
+  sendMessage,
+  stopGeneration,
+  updateCharacterCard,
+} from "../api.js";
 import {
   applyBeatDelete,
   applyBeatSave,
@@ -30,6 +38,10 @@ export function createSceneController({
 }) {
   const ui = createSceneUi();
   let availableModels = [];
+  let characterLibraryCards = [];
+  let characterLibraryTags = [];
+  let characterLibrarySearch = "";
+  let activeCharacterLibraryTagIds = [];
   let scene = normalizeSceneDraft(loadSceneDraft(), { restoreStopped: true });
 
   const runner = createSceneRunner({
@@ -67,9 +79,18 @@ export function createSceneController({
     onChange(nextScene) {
       scene = normalizeSceneDraft(nextScene);
       saveSceneDraft(scene);
-      ui.render(scene, { availableModels });
+      renderScene();
     },
   });
+
+  function renderScene() {
+    ui.render(scene, {
+      availableModels,
+      characterLibraryCards,
+      characterLibraryTags,
+      activeCharacterLibraryTagIds,
+    });
+  }
 
   function updateScene(patch) {
     scene = normalizeSceneDraft(
@@ -77,7 +98,7 @@ export function createSceneController({
     );
     saveSceneDraft(scene);
     runner.replaceScene(scene);
-    ui.render(scene, { availableModels });
+    renderScene();
   }
 
   async function ensureModelsLoaded() {
@@ -87,7 +108,30 @@ export function createSceneController({
       availableModels = [];
     }
 
-    ui.render(scene, { availableModels });
+    renderScene();
+  }
+
+  async function refreshCharacterLibrary() {
+    try {
+      const [cards, tags] = await Promise.all([
+        loadCharacterCards({
+          q: characterLibrarySearch,
+          tagIds: activeCharacterLibraryTagIds,
+        }),
+        loadCharacterTags(),
+      ]);
+      characterLibraryCards = cards;
+      characterLibraryTags = tags;
+      ui.setLibraryError("");
+    } catch (error) {
+      characterLibraryCards = [];
+      characterLibraryTags = [];
+      ui.setLibraryError(
+        error instanceof Error ? error.message : "Could not load character library.",
+      );
+    }
+
+    renderScene();
   }
 
   function setWorkspace(workspace) {
@@ -102,11 +146,107 @@ export function createSceneController({
     ui.openCharacterDialog(characterId, scene.characters[characterId]);
   }
 
+  function openCharacterLibrary(characterId) {
+    ui.openCharacterLibraryDialog(characterId);
+    void refreshCharacterLibrary();
+  }
+
   function saveCharacter(characterId, characterDraft) {
     updateScene((currentScene) =>
-      applyCharacterSave(currentScene, characterId, characterDraft),
+      applyCharacterSave(currentScene, characterId, {
+        ...characterDraft,
+        sourceCardTitle: characterDraft.sourceCardId ? characterDraft.title : "",
+      }),
     );
     ui.closeCharacterDialog();
+  }
+
+  async function saveCharacterToLibrary(characterId, characterDraft) {
+    const input = {
+      title: characterDraft.title,
+      characterName: characterDraft.name,
+      gender: characterDraft.gender,
+      age: characterDraft.age,
+      cardText: characterDraft.card,
+      tags: characterDraft.tags,
+    };
+
+    try {
+      const savedCard = characterDraft.sourceCardId
+        ? await updateCharacterCard(characterDraft.sourceCardId, input)
+        : await createCharacterCard(input);
+
+      if (!savedCard) {
+        ui.setCharacterError("Could not save character card.");
+        return;
+      }
+
+      updateScene((currentScene) =>
+        applyCharacterSave(currentScene, characterId, {
+          name: savedCard.characterName,
+          gender: savedCard.gender,
+          age: savedCard.age,
+          card: savedCard.cardText,
+          sourceCardId: savedCard.id,
+          sourceCardTitle: savedCard.title,
+          tags: savedCard.tags,
+        }),
+      );
+      ui.openCharacterDialog(characterId, scene.characters[characterId]);
+      await refreshCharacterLibrary();
+    } catch (error) {
+      ui.setCharacterError(
+        error instanceof Error ? error.message : "Could not save character card.",
+      );
+    }
+  }
+
+  function useCharacterCard(cardIdParam) {
+    const cardId = Number.parseInt(cardIdParam, 10);
+    const card = characterLibraryCards.find((entry) => entry.id === cardId);
+
+    if (!card) {
+      ui.setLibraryError("Character card not found.");
+      return;
+    }
+
+    const characterId = ui.getEditingCharacterId?.();
+
+    if (!characterId) {
+      ui.setLibraryError("Choose a character slot first.");
+      return;
+    }
+
+    updateScene((currentScene) =>
+      applyCharacterSave(currentScene, characterId, {
+        name: card.characterName,
+        gender: card.gender,
+        age: card.age,
+        card: card.cardText,
+        sourceCardId: card.id,
+        sourceCardTitle: card.title,
+        tags: card.tags,
+      }),
+    );
+    ui.closeCharacterLibraryDialog();
+  }
+
+  function setLibrarySearch(value) {
+    characterLibrarySearch = typeof value === "string" ? value : "";
+    void refreshCharacterLibrary();
+  }
+
+  function toggleLibraryTag(tagIdParam) {
+    const tagId = Number.parseInt(tagIdParam, 10);
+
+    if (!Number.isInteger(tagId) || tagId <= 0) {
+      return;
+    }
+
+    activeCharacterLibraryTagIds = activeCharacterLibraryTagIds.includes(tagId)
+      ? activeCharacterLibraryTagIds.filter((entry) => entry !== tagId)
+      : [...activeCharacterLibraryTagIds, tagId];
+    void refreshCharacterLibrary();
   }
 
   function openAddBeatDialog() {
@@ -202,6 +342,10 @@ export function createSceneController({
       onAddBeat: openAddBeatDialog,
       onEditBeat: openEditBeatDialog,
       onDeleteBeat: deleteBeat,
+      onLoadCharacter: openCharacterLibrary,
+      onLibrarySearch: setLibrarySearch,
+      onLibraryTagToggle: toggleLibraryTag,
+      onUseCharacterCard: useCharacterCard,
       onSaveCharacter(action, characterId, characterDraft) {
         if (action === "open") {
           openCharacterDialog(characterId);
@@ -210,11 +354,15 @@ export function createSceneController({
 
         saveCharacter(characterId, characterDraft);
       },
+      onSaveCharacterToLibrary(characterId, characterDraft) {
+        void saveCharacterToLibrary(characterId, characterDraft);
+      },
       onSaveBeat: saveBeat,
     });
 
-    ui.render(scene, { availableModels });
+    renderScene();
     void ensureModelsLoaded();
+    void refreshCharacterLibrary();
   }
 
   return {

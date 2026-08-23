@@ -9,7 +9,9 @@
   .scene-field-grid,
   .scene-run-meta { grid-template-columns:minmax(0,1fr); }
   .scene-screen-header,
-  .scene-run-summary { flex-direction:column; align-items:flex-start; }
+  .scene-run-summary,
+  .scene-character-card-header,
+  .scene-editor-header { flex-direction:column; align-items:stretch; }
   .workspace-switcher-buttons,
   .scene-run-summary { width:100%; }
   .scene-action-bar,
@@ -25,10 +27,51 @@
   .scene-run-rail-mobile { display:block; }
   .scene-direction-section { max-height:none; }
   .scene-dialog { width:min(100% - 16px,44rem); }
+  .scene-character-dialog {
+    width:100%;
+    max-width:none;
+    height:100dvh;
+    max-height:100dvh;
+    margin:0;
+    border:0;
+  }
+  .scene-character-dialog .scene-dialog-form {
+    min-height:100dvh;
+    max-height:100dvh;
+    padding:12px 12px calc(12px + env(safe-area-inset-bottom));
+    overflow:auto;
+  }
+  .scene-character-dialog .scene-character-card-input {
+    min-height:0;
+    height:35dvh;
+    resize:none;
+  }
+  .scene-character-dialog .actions {
+    position:sticky;
+    bottom:var(--keyboard-inset);
+    z-index:2;
+    display:grid;
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    padding:8px 0 calc(8px + env(safe-area-inset-bottom));
+    background:var(--surface);
+  }
+  .scene-library-dialog {
+    width:100%;
+    max-width:none;
+    margin:auto 0 0;
+    max-height:calc(100dvh - 16px);
+  }
+  .scene-library-panel { max-height:calc(100dvh - 32px); }
+  .scene-library-list { min-height:12rem; }
+  .scene-character-card-actions { width:100%; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .scene-radio-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .scene-tag-editor-heading { grid-template-columns:minmax(0,1fr); }
+  .scene-library-card-topline { align-items:flex-start; }
   .scene-character-card-input,
   .scene-beat-text-input { min-height:12rem; }
 }
 @media (max-width:420px) {
   .scene-action-buttons,
-  .scene-run-primary-actions { grid-template-columns:minmax(0,1fr); }
+  .scene-run-primary-actions,
+  .scene-character-dialog .actions { grid-template-columns:minmax(0,1fr); }
 }

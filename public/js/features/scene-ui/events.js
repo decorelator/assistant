@@ -1,3 +1,28 @@
+import { flattenCharacterTagGroups } from "./character-cards.js";
+
+function getSelectedCharacterGender(dom) {
+  const selectedInput = dom.characterGenderInputs?.find((input) => input.checked);
+  return selectedInput?.value ?? "";
+}
+
+function getCharacterAge(dom) {
+  const age = Number.parseInt(dom.characterAgeInput?.value ?? "", 10);
+  return Number.isInteger(age) && age > 0 && age <= 999 ? age : null;
+}
+
+function readCharacterDraft(dom, dialogs) {
+  return {
+    title: dom.characterTitleInput?.value ?? "",
+    name: dom.characterNameInput?.value ?? "",
+    gender: getSelectedCharacterGender(dom),
+    age: getCharacterAge(dom),
+    card: dom.characterCardInput?.value ?? "",
+    tags: flattenCharacterTagGroups(dialogs.getCharacterTagGroups?.()),
+    sourceCardId: Number(dom.characterForm?.dataset.sourceCardId || 0) || null,
+    sourceCardTitle: dom.characterForm?.dataset.sourceCardTitle || "",
+  };
+}
+
 export function bindSceneUiEvents(dom, dialogs, handlers) {
   const {
     onAddBeat,
@@ -7,12 +32,17 @@ export function bindSceneUiEvents(dom, dialogs, handlers) {
     onEditBeat,
     onFieldChange,
     onGenerate,
+    onLoadCharacter,
+    onLibrarySearch,
+    onLibraryTagToggle,
     onOpenSetup,
     onPause,
     onResume,
     onRetry,
     onSaveBeat,
     onSaveCharacter,
+    onSaveCharacterToLibrary,
+    onUseCharacterCard,
     onStop,
     onWorkspaceChange,
   } = handlers;
@@ -54,71 +84,150 @@ export function bindSceneUiEvents(dom, dialogs, handlers) {
       return;
     }
 
-    const characterId = target.getAttribute("data-scene-edit-character");
+    const actionTarget = target.closest("button, [data-scene-edit-beat], [data-scene-delete-beat]");
+
+    if (!(actionTarget instanceof HTMLElement)) {
+      return;
+    }
+
+    const characterId = actionTarget.getAttribute("data-scene-edit-character");
     if (characterId) {
       onSaveCharacter?.("open", characterId);
       return;
     }
 
-    if (target.hasAttribute("data-scene-generate")) {
+    const loadCharacterId = actionTarget.getAttribute("data-scene-load-character");
+    if (loadCharacterId) {
+      onLoadCharacter?.(loadCharacterId);
+      return;
+    }
+
+    const libraryTagId = actionTarget.getAttribute("data-scene-character-library-tag");
+    if (libraryTagId) {
+      onLibraryTagToggle?.(libraryTagId);
+      return;
+    }
+
+    const characterCardId = actionTarget.getAttribute("data-scene-use-character-card");
+    if (characterCardId) {
+      onUseCharacterCard?.(characterCardId);
+      return;
+    }
+
+    const removeTagKind = actionTarget.getAttribute("data-scene-tag-remove");
+    if (removeTagKind) {
+      dialogs.removeCharacterTag?.(removeTagKind, actionTarget.getAttribute("data-scene-tag-name"));
+      return;
+    }
+
+    const suggestionKind = actionTarget.getAttribute("data-scene-tag-suggestion");
+    if (suggestionKind) {
+      dialogs.addCharacterTag?.(suggestionKind, actionTarget.getAttribute("data-scene-tag-name"));
+      return;
+    }
+
+    if (actionTarget.hasAttribute("data-scene-generate")) {
       onGenerate?.();
       return;
     }
 
-    if (target.hasAttribute("data-scene-pause")) {
+    if (actionTarget.hasAttribute("data-scene-pause")) {
       onPause?.();
       return;
     }
 
-    if (target.hasAttribute("data-scene-resume")) {
+    if (actionTarget.hasAttribute("data-scene-resume")) {
       onResume?.();
       return;
     }
 
-    if (target.hasAttribute("data-scene-continue")) {
+    if (actionTarget.hasAttribute("data-scene-continue")) {
       onContinue?.();
       return;
     }
 
-    if (target.hasAttribute("data-scene-retry")) {
+    if (actionTarget.hasAttribute("data-scene-retry")) {
       onRetry?.();
       return;
     }
 
-    if (target.hasAttribute("data-scene-stop")) {
+    if (actionTarget.hasAttribute("data-scene-stop")) {
       onStop?.();
       return;
     }
 
     if (
-      target.hasAttribute("data-scene-open-setup") ||
-      target.hasAttribute("data-scene-open-setup-mobile")
+      actionTarget.hasAttribute("data-scene-open-setup") ||
+      actionTarget.hasAttribute("data-scene-open-setup-mobile")
     ) {
       onOpenSetup?.();
       return;
     }
 
-    if (target.hasAttribute("data-scene-back-to-run")) {
+    if (actionTarget.hasAttribute("data-scene-back-to-run")) {
       onBackToRun?.();
       return;
     }
 
-    if (target.hasAttribute("data-scene-add-beat")) {
+    if (actionTarget.hasAttribute("data-scene-add-beat")) {
       onAddBeat?.();
       return;
     }
 
-    const editBeatId = target.getAttribute("data-scene-edit-beat");
+    if (actionTarget.hasAttribute("data-scene-character-library-close")) {
+      dialogs.closeCharacterLibraryDialog();
+      return;
+    }
+
+    if (actionTarget.hasAttribute("data-scene-character-open-library")) {
+      const editingCharacterId = dialogs.getEditingCharacterId();
+
+      if (editingCharacterId) {
+        dialogs.closeCharacterDialog();
+        onLoadCharacter?.(editingCharacterId);
+      }
+      return;
+    }
+
+    if (actionTarget.hasAttribute("data-scene-character-save-library")) {
+      const editingCharacterId = dialogs.getEditingCharacterId();
+
+      if (editingCharacterId) {
+        onSaveCharacterToLibrary?.(editingCharacterId, readCharacterDraft(dom, dialogs));
+      }
+      return;
+    }
+
+    const editBeatId = actionTarget.getAttribute("data-scene-edit-beat");
     if (editBeatId) {
       onEditBeat?.(editBeatId);
       return;
     }
 
-    const deleteBeatId = target.getAttribute("data-scene-delete-beat");
+    const deleteBeatId = actionTarget.getAttribute("data-scene-delete-beat");
     if (deleteBeatId) {
       onDeleteBeat?.(deleteBeatId);
     }
   });
+
+  dom.characterLibrarySearch?.addEventListener("input", () => {
+    onLibrarySearch?.(dom.characterLibrarySearch?.value ?? "");
+  });
+
+  for (const input of dom.characterTagEditorInputs ?? []) {
+    input.addEventListener("input", () => {
+      dialogs.refreshCharacterTagEditor?.();
+    });
+    input.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") {
+        return;
+      }
+
+      event.preventDefault();
+      const kind = input.getAttribute("data-scene-tag-editor-input");
+      dialogs.addCharacterTag?.(kind, input.value);
+    });
+  }
 
   dom.characterForm?.addEventListener("submit", (event) => {
     event.preventDefault();
@@ -129,10 +238,7 @@ export function bindSceneUiEvents(dom, dialogs, handlers) {
       return;
     }
 
-    onSaveCharacter?.("save", editingCharacterId, {
-      name: dom.characterNameInput?.value ?? "",
-      card: dom.characterCardInput?.value ?? "",
-    });
+    onSaveCharacter?.("save", editingCharacterId, readCharacterDraft(dom, dialogs));
   });
 
   dom.characterCancelButton?.addEventListener("click", () => {

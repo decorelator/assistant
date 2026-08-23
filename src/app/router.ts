@@ -1,6 +1,12 @@
 const { refreshEnv } = require("../config/env");
 const {
   handleConfigRequest,
+  handleCharacterCardCreateRequest,
+  handleCharacterCardDeleteRequest,
+  handleCharacterCardListRequest,
+  handleCharacterCardReadRequest,
+  handleCharacterCardUpdateRequest,
+  handleCharacterTagListRequest,
   handleInstructionPresetCreateRequest,
   handleInstructionPresetDeleteRequest,
   handleInstructionPresetListRequest,
@@ -22,8 +28,10 @@ async function handleRequest(
   response: import("node:http").ServerResponse,
 ) {
   refreshEnv();
-  const url = new URL(request.url ?? "/", "http://127.0.0.1").pathname;
+  const requestUrl = new URL(request.url ?? "/", "http://127.0.0.1");
+  const url = requestUrl.pathname;
   const presetMatch = url.match(/^\/api\/instruction-presets\/(\d+)$/);
+  const characterCardMatch = url.match(/^\/api\/character-cards\/(\d+)$/);
 
   if (url === "/api/models") {
     await handleModelsRequest(response);
@@ -37,6 +45,36 @@ async function handleRequest(
 
   if (url === "/api/instruction-presets" && request.method === "GET") {
     handleInstructionPresetListRequest(response);
+    return;
+  }
+
+  if (url === "/api/character-cards" && request.method === "GET") {
+    handleCharacterCardListRequest(response, requestUrl.searchParams);
+    return;
+  }
+
+  if (url === "/api/character-cards" && request.method === "POST") {
+    await handleCharacterCardCreateRequest(request, response);
+    return;
+  }
+
+  if (characterCardMatch && request.method === "GET") {
+    handleCharacterCardReadRequest(response, characterCardMatch[1]);
+    return;
+  }
+
+  if (characterCardMatch && request.method === "PUT") {
+    await handleCharacterCardUpdateRequest(request, response, characterCardMatch[1]);
+    return;
+  }
+
+  if (characterCardMatch && request.method === "DELETE") {
+    handleCharacterCardDeleteRequest(response, characterCardMatch[1]);
+    return;
+  }
+
+  if (url === "/api/character-tags" && request.method === "GET") {
+    handleCharacterTagListRequest(response);
     return;
   }
 

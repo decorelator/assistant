@@ -112,13 +112,24 @@ export function applySceneFieldChange(scene, fieldName, value) {
 }
 
 export function applyCharacterSave(scene, characterId, characterDraft) {
+  const tags = Array.isArray(characterDraft.tags) ? characterDraft.tags : [];
+
   return {
     ...scene,
     characters: {
       ...scene.characters,
       [characterId]: {
         name: characterDraft.name?.trim() || `Character ${characterId}`,
+        gender: typeof characterDraft.gender === "string" ? characterDraft.gender.trim() : "",
+        age:
+          typeof characterDraft.age === "number" && Number.isInteger(characterDraft.age) && characterDraft.age > 0
+            ? characterDraft.age
+            : null,
         card: characterDraft.card ?? "",
+        sourceCardId:
+          typeof characterDraft.sourceCardId === "number" ? characterDraft.sourceCardId : null,
+        sourceCardTitle: characterDraft.sourceCardTitle ?? "",
+        tags,
       },
     },
   };

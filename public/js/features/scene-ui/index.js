@@ -14,6 +14,11 @@ import {
 import { createSceneDialogs } from "./dialogs.js";
 import { getSceneUiDom, setHidden, setText, syncValue } from "./dom.js";
 import { bindSceneUiEvents } from "./events.js";
+import {
+  renderCharacterLibraryList,
+  renderCharacterLibraryTags,
+  renderCharacterSlots,
+} from "./character-cards.js";
 import { renderBeatList } from "./render-beats.js";
 import { renderSceneTranscript } from "./render-transcript.js";
 
@@ -27,22 +32,6 @@ const STATUS_LABELS = {
   [SCENE_STATUS.COMPLETED]: "Completed",
   [SCENE_STATUS.ERROR]: "Error",
 };
-
-function getCharacterFallbackName(characterId) {
-  return `Character ${characterId}`;
-}
-
-function getCharacterPreview(card, characterId) {
-  const text = typeof card === "string" ? card.trim() : "";
-
-  if (text) {
-    return text;
-  }
-
-  return characterId === "A"
-    ? "Add a card to define this speaker. (Reminder: Character A is the male character.)"
-    : "Add a card to define this speaker. (Reminder: Character B is the female character.)";
-}
 
 function formatCountdown(countdownRemainingMs) {
   if (countdownRemainingMs <= 0) {
@@ -59,7 +48,7 @@ function getCurrentSpeakerLabel(scene) {
     return "Completed";
   }
 
-  return scene.characters[speaker]?.name || getCharacterFallbackName(speaker);
+  return scene.characters[speaker]?.name || `Character ${speaker}`;
 }
 
 export function createSceneUi() {
@@ -70,7 +59,15 @@ export function createSceneUi() {
     bindSceneUiEvents(dom, dialogs, handlers);
   }
 
-  function render(sceneInput, { availableModels = [] } = {}) {
+  function render(
+    sceneInput,
+    {
+      availableModels = [],
+      characterLibraryCards = [],
+      characterLibraryTags = [],
+      activeCharacterLibraryTagIds = [],
+    } = {},
+  ) {
     const scene = normalizeSceneDraft(sceneInput);
     const setupLocked =
       scene.view === SCENE_VIEW.SETUP &&
@@ -144,21 +141,14 @@ export function createSceneUi() {
       }
     }
 
-    for (const characterId of SCENE_CHARACTER_IDS) {
-      const character = scene.characters[characterId];
-      setText(
-        document.querySelector(`[data-scene-character-name='${characterId}']`),
-        character.name || getCharacterFallbackName(characterId),
-      );
-      setText(
-        document.querySelector(`[data-scene-character-preview='${characterId}']`),
-        getCharacterPreview(character.card, characterId),
-      );
-      const editButton = document.querySelector(`[data-scene-edit-character='${characterId}']`);
-      if (editButton instanceof HTMLButtonElement) {
-        editButton.disabled = setupLocked;
-      }
-    }
+    renderCharacterSlots(dom.characterGrid, scene, SCENE_CHARACTER_IDS, { locked: setupLocked });
+    renderCharacterLibraryTags(
+      dom.characterLibraryTags,
+      characterLibraryTags,
+      activeCharacterLibraryTagIds,
+    );
+    dialogs.setCharacterTagSuggestions(characterLibraryTags);
+    renderCharacterLibraryList(dom.characterLibraryList, characterLibraryCards);
 
     if (dom.addBeatButton instanceof HTMLButtonElement) {
       dom.addBeatButton.disabled = false;
@@ -230,8 +220,7 @@ export function createSceneUi() {
     if (dom.generateButton instanceof HTMLButtonElement) {
       dom.generateButton.disabled =
         !scene.model ||
-        !scene.characters.A.card.trim() ||
-        !scene.characters.B.card.trim();
+        SCENE_CHARACTER_IDS.some((characterId) => !scene.characters[characterId]?.card.trim());
     }
 
     renderSelectOptions(dom.modelInput, availableModels, {
@@ -246,9 +235,14 @@ export function createSceneUi() {
     bind,
     closeBeatDialog: dialogs.closeBeatDialog,
     closeCharacterDialog: dialogs.closeCharacterDialog,
+    closeCharacterLibraryDialog: dialogs.closeCharacterLibraryDialog,
+    getEditingCharacterId: dialogs.getEditingCharacterId,
     openBeatDialog: dialogs.openBeatDialog,
     openCharacterDialog: dialogs.openCharacterDialog,
+    openCharacterLibraryDialog: dialogs.openCharacterLibraryDialog,
     render,
     setBeatError: dialogs.setBeatError,
+    setCharacterError: dialogs.setCharacterError,
+    setLibraryError: dialogs.setLibraryError,
   };
 }
