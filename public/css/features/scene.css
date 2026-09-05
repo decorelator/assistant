@@ -1,6 +1,8 @@
 .workspace-switcher,
 .scene-section,
 .scene-action-bar { border:1px solid var(--line); background:var(--surface); }
+html:has(.scene-dialog[open]),
+body:has(.scene-dialog[open]) { overflow:hidden; }
 .chat-workspace[hidden],
 .scene-workspace[hidden],
 .scene-screen[hidden] { display:none !important; }
@@ -265,14 +267,34 @@
 .scene-run-rail-mobile-body { padding:0 14px 14px; }
 .scene-dialog { width:min(100% - 24px,44rem); }
 .scene-dialog-form { gap:12px; }
-.scene-character-dialog { width:min(100% - 24px,56rem); }
-.scene-character-dialog .scene-dialog-form { max-height:min(86vh,54rem); overflow:auto; }
+.scene-character-dialog,
+.scene-library-dialog:not(.scene-card-library-dialog) {
+  width:100%;
+  max-width:none;
+  height:100dvh;
+  max-height:100dvh;
+  margin:0;
+  border:0;
+  border-radius:0;
+  overflow:hidden;
+  overscroll-behavior:none;
+}
+.scene-character-dialog .scene-dialog-form,
+.scene-library-dialog:not(.scene-card-library-dialog) .scene-library-panel {
+  min-height:100dvh;
+  max-height:100dvh;
+  overflow:auto;
+}
 .scene-character-card-input,
 .scene-beat-text-input { min-height:15rem; }
-.scene-library-dialog { width:min(100% - 24px,52rem); }
-.scene-library-panel { max-height:min(80vh,48rem); overflow:hidden; }
 .scene-library-header { align-items:flex-start; }
-.scene-library-list { display:grid; gap:10px; min-height:10rem; overflow:auto; padding-right:2px; }
+.scene-library-dialog:not(.scene-card-library-dialog) .scene-library-list {
+  display:grid;
+  gap:10px;
+  min-height:0;
+  overflow:visible;
+  padding-right:2px;
+}
 .scene-library-card { border:1px solid var(--line); background:var(--surface-strong); min-width:0; }
 .scene-library-card-controls { display:flex; gap:8px; justify-content:flex-end; padding:0 12px 12px; }
 .scene-library-card-button {
