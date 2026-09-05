@@ -192,6 +192,27 @@ function normalizeBeat(value) {
   };
 }
 
+function normalizeSceneCardSnapshot(value) {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const text = asString(value.text);
+
+  if (!text.trim()) {
+    return null;
+  }
+
+  return {
+    sourceId:
+      typeof value.sourceId === "number" && Number.isInteger(value.sourceId) && value.sourceId > 0
+        ? value.sourceId
+        : null,
+    title: asString(value.title, "Untitled card") || "Untitled card",
+    text,
+  };
+}
+
 export function createSceneId(prefix = "scene") {
   return `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
 }
@@ -201,6 +222,8 @@ export function createDefaultSceneDraft() {
     workspace: SCENE_WORKSPACE.CHAT,
     view: SCENE_VIEW.SETUP,
     title: "",
+    instructionCards: [],
+    contextCards: [],
     globalInstruction: "",
     context: "",
     model: "",
@@ -232,6 +255,12 @@ export function normalizeSceneDraft(value, options = {}) {
     workspace: asWorkspace(source.workspace),
     view: asView(source.view),
     title: asString(source.title),
+    instructionCards: Array.isArray(source.instructionCards)
+      ? source.instructionCards.map(normalizeSceneCardSnapshot).filter(Boolean)
+      : [],
+    contextCards: Array.isArray(source.contextCards)
+      ? source.contextCards.map(normalizeSceneCardSnapshot).filter(Boolean)
+      : [],
     globalInstruction: asString(source.globalInstruction),
     context: asString(source.context),
     model: getLegacySceneModel(source),

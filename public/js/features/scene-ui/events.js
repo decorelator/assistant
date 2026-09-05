@@ -23,6 +23,15 @@ function readCharacterDraft(dom, dialogs) {
   };
 }
 
+function readSceneCardDraft(dom, dialogs) {
+  return {
+    type: dialogs.getSceneCardLibraryType?.() ?? "instruction",
+    title: dom.sceneCardTitleInput?.value ?? "",
+    description: dom.sceneCardDescriptionInput?.value ?? "",
+    text: dom.sceneCardTextInput?.value ?? "",
+  };
+}
+
 export function bindSceneUiEvents(dom, dialogs, handlers) {
   const {
     onAddBeat,
@@ -35,6 +44,7 @@ export function bindSceneUiEvents(dom, dialogs, handlers) {
     onLoadCharacter,
     onLibrarySearch,
     onLibraryTagToggle,
+    onLoadSceneCard,
     onOpenSetup,
     onPause,
     onResume,
@@ -42,6 +52,12 @@ export function bindSceneUiEvents(dom, dialogs, handlers) {
     onSaveBeat,
     onSaveCharacter,
     onSaveCharacterToLibrary,
+    onSaveSceneCard,
+    onSceneCardDelete,
+    onSceneCardEdit,
+    onSceneCardLibrarySearch,
+    onSceneCardRemove,
+    onSceneCardUse,
     onUseCharacterCard,
     onStop,
     onWorkspaceChange,
@@ -114,6 +130,39 @@ export function bindSceneUiEvents(dom, dialogs, handlers) {
       return;
     }
 
+    const loadSceneCardType = actionTarget.getAttribute("data-scene-load-card");
+    if (loadSceneCardType) {
+      onLoadSceneCard?.(loadSceneCardType);
+      return;
+    }
+
+    const removeSceneCardId = actionTarget.getAttribute("data-scene-remove-card");
+    if (removeSceneCardId) {
+      onSceneCardRemove?.(
+        actionTarget.getAttribute("data-scene-card-type"),
+        removeSceneCardId,
+      );
+      return;
+    }
+
+    const sceneCardId = actionTarget.getAttribute("data-scene-use-card");
+    if (sceneCardId) {
+      onSceneCardUse?.(sceneCardId);
+      return;
+    }
+
+    const editSceneCardId = actionTarget.getAttribute("data-scene-edit-card");
+    if (editSceneCardId) {
+      onSceneCardEdit?.(editSceneCardId);
+      return;
+    }
+
+    const deleteSceneCardId = actionTarget.getAttribute("data-scene-delete-card");
+    if (deleteSceneCardId) {
+      onSceneCardDelete?.(deleteSceneCardId);
+      return;
+    }
+
     const removeTagKind = actionTarget.getAttribute("data-scene-tag-remove");
     if (removeTagKind) {
       dialogs.removeCharacterTag?.(removeTagKind, actionTarget.getAttribute("data-scene-tag-name"));
@@ -179,6 +228,16 @@ export function bindSceneUiEvents(dom, dialogs, handlers) {
       return;
     }
 
+    if (actionTarget.hasAttribute("data-scene-card-library-close")) {
+      dialogs.closeSceneCardLibraryDialog();
+      return;
+    }
+
+    if (actionTarget.hasAttribute("data-scene-card-new")) {
+      dialogs.resetSceneCardForm();
+      return;
+    }
+
     if (actionTarget.hasAttribute("data-scene-character-open-library")) {
       const editingCharacterId = dialogs.getEditingCharacterId();
 
@@ -212,6 +271,10 @@ export function bindSceneUiEvents(dom, dialogs, handlers) {
 
   dom.characterLibrarySearch?.addEventListener("input", () => {
     onLibrarySearch?.(dom.characterLibrarySearch?.value ?? "");
+  });
+
+  dom.sceneCardLibrarySearch?.addEventListener("input", () => {
+    onSceneCardLibrarySearch?.(dom.sceneCardLibrarySearch?.value ?? "");
   });
 
   for (const input of dom.characterTagEditorInputs ?? []) {
@@ -252,6 +315,11 @@ export function bindSceneUiEvents(dom, dialogs, handlers) {
       moment: dom.beatMomentInput?.value ?? "",
       text: dom.beatTextInput?.value ?? "",
     });
+  });
+
+  dom.sceneCardForm?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    onSaveSceneCard?.(dialogs.getEditingSceneCardId(), readSceneCardDraft(dom, dialogs));
   });
 
   dom.beatCancelButton?.addEventListener("click", () => {

@@ -12,6 +12,8 @@ function getCharacterFallbackName(characterId) {
 export function createSceneDialogs(dom) {
   let editingCharacterId = null;
   let editingBeatId = null;
+  let editingSceneCardId = null;
+  let sceneCardLibraryType = "instruction";
   let characterTagGroups = groupCharacterTags([]);
   let characterTagSuggestions = [];
 
@@ -119,6 +121,49 @@ export function createSceneDialogs(dom) {
     setLibraryError("");
   }
 
+  function openSceneCardLibraryDialog(type) {
+    sceneCardLibraryType = type === "context" ? "context" : "instruction";
+    editingSceneCardId = null;
+    setText(
+      dom.sceneCardLibraryTitle,
+      sceneCardLibraryType === "context" ? "Choose context card" : "Choose instruction card",
+    );
+    resetSceneCardForm();
+    syncValue(dom.sceneCardLibrarySearch, "");
+    setSceneCardLibraryError("");
+    dom.sceneCardLibraryDialog?.showModal();
+    dom.sceneCardLibrarySearch?.focus();
+  }
+
+  function closeSceneCardLibraryDialog() {
+    dom.sceneCardLibraryDialog?.close();
+    editingSceneCardId = null;
+    setSceneCardLibraryError("");
+  }
+
+  function resetSceneCardForm() {
+    editingSceneCardId = null;
+    setText(dom.sceneCardFormTitle, "New card");
+    syncValue(dom.sceneCardTitleInput, "");
+    syncValue(dom.sceneCardDescriptionInput, "");
+    syncValue(dom.sceneCardTextInput, "");
+    if (dom.sceneCardSaveButton) {
+      dom.sceneCardSaveButton.textContent = "Save card";
+    }
+  }
+
+  function editSceneCard(card) {
+    editingSceneCardId = card?.id ?? null;
+    setText(dom.sceneCardFormTitle, editingSceneCardId ? "Edit card" : "New card");
+    syncValue(dom.sceneCardTitleInput, card?.title ?? "");
+    syncValue(dom.sceneCardDescriptionInput, card?.description ?? "");
+    syncValue(dom.sceneCardTextInput, card?.text ?? "");
+    if (dom.sceneCardSaveButton) {
+      dom.sceneCardSaveButton.textContent = editingSceneCardId ? "Update card" : "Save card";
+    }
+    dom.sceneCardTitleInput?.focus();
+  }
+
   function openBeatDialog(beat, exchangeCount) {
     editingBeatId = beat?.id ?? null;
     setText(dom.beatDialogTitle, beat ? "Edit beat" : "Add beat");
@@ -157,15 +202,28 @@ export function createSceneDialogs(dom) {
     }
   }
 
+  function setSceneCardLibraryError(message) {
+    if (dom.sceneCardLibraryError) {
+      dom.sceneCardLibraryError.textContent = message;
+      dom.sceneCardLibraryError.hidden = !message;
+    }
+  }
+
   return {
     closeBeatDialog,
     closeCharacterDialog,
     closeCharacterLibraryDialog,
+    closeSceneCardLibraryDialog,
+    editSceneCard,
     getEditingBeatId: () => editingBeatId,
     getEditingCharacterId: () => editingCharacterId,
+    getEditingSceneCardId: () => editingSceneCardId,
+    getSceneCardLibraryType: () => sceneCardLibraryType,
     openBeatDialog,
     openCharacterDialog,
     openCharacterLibraryDialog,
+    openSceneCardLibraryDialog,
+    resetSceneCardForm,
     addCharacterTag,
     getCharacterTagGroups: () => characterTagGroups,
     removeCharacterTag,
@@ -174,6 +232,7 @@ export function createSceneDialogs(dom) {
     setCharacterError,
     setCharacterTagSuggestions,
     setLibraryError,
+    setSceneCardLibraryError,
   };
 }
 

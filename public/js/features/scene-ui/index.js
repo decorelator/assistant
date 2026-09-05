@@ -19,6 +19,10 @@ import {
   renderCharacterLibraryTags,
   renderCharacterSlots,
 } from "./character-cards.js";
+import {
+  renderSceneCardLibraryList,
+  renderSelectedSceneCards,
+} from "./scene-cards.js";
 import { renderBeatList } from "./render-beats.js";
 import { renderSceneTranscript } from "./render-transcript.js";
 
@@ -66,6 +70,8 @@ export function createSceneUi() {
       characterLibraryCards = [],
       characterLibraryTags = [],
       activeCharacterLibraryTagIds = [],
+      sceneCardLibraryCards = [],
+      activeSceneCardType = "instruction",
     } = {},
   ) {
     const scene = normalizeSceneDraft(sceneInput);
@@ -141,7 +147,17 @@ export function createSceneUi() {
       }
     }
 
+    for (const button of dom.sceneCardLibraryButtons ?? []) {
+      button.disabled = setupLocked;
+    }
+
     renderCharacterSlots(dom.characterGrid, scene, SCENE_CHARACTER_IDS, { locked: setupLocked });
+    renderSelectedSceneCards(dom.selectedInstructionCards, scene.instructionCards, "instruction", {
+      locked: setupLocked,
+    });
+    renderSelectedSceneCards(dom.selectedContextCards, scene.contextCards, "context", {
+      locked: setupLocked,
+    });
     renderCharacterLibraryTags(
       dom.characterLibraryTags,
       characterLibraryTags,
@@ -149,6 +165,11 @@ export function createSceneUi() {
     );
     dialogs.setCharacterTagSuggestions(characterLibraryTags);
     renderCharacterLibraryList(dom.characterLibraryList, characterLibraryCards);
+    renderSceneCardLibraryList(
+      dom.sceneCardLibraryList,
+      sceneCardLibraryCards,
+      activeSceneCardType === "context" ? scene.contextCards : scene.instructionCards,
+    );
 
     if (dom.addBeatButton instanceof HTMLButtonElement) {
       dom.addBeatButton.disabled = false;
@@ -236,13 +257,18 @@ export function createSceneUi() {
     closeBeatDialog: dialogs.closeBeatDialog,
     closeCharacterDialog: dialogs.closeCharacterDialog,
     closeCharacterLibraryDialog: dialogs.closeCharacterLibraryDialog,
+    closeSceneCardLibraryDialog: dialogs.closeSceneCardLibraryDialog,
+    editSceneCard: dialogs.editSceneCard,
     getEditingCharacterId: dialogs.getEditingCharacterId,
+    getSceneCardLibraryType: dialogs.getSceneCardLibraryType,
     openBeatDialog: dialogs.openBeatDialog,
     openCharacterDialog: dialogs.openCharacterDialog,
     openCharacterLibraryDialog: dialogs.openCharacterLibraryDialog,
+    openSceneCardLibraryDialog: dialogs.openSceneCardLibraryDialog,
     render,
     setBeatError: dialogs.setBeatError,
     setCharacterError: dialogs.setCharacterError,
     setLibraryError: dialogs.setLibraryError,
+    setSceneCardLibraryError: dialogs.setSceneCardLibraryError,
   };
 }

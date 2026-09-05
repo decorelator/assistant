@@ -19,6 +19,11 @@ const {
   handleModelStopRequest,
   handleOtherModelsReleaseRequest,
   handleModelsRequest,
+  handleSceneCardCreateRequest,
+  handleSceneCardDeleteRequest,
+  handleSceneCardListRequest,
+  handleSceneCardReadRequest,
+  handleSceneCardUpdateRequest,
 } = require("../api/handlers");
 const { sendNotFound } = require("../lib/http");
 const { servePublicAsset } = require("../static/serve-public");
@@ -32,6 +37,7 @@ async function handleRequest(
   const url = requestUrl.pathname;
   const presetMatch = url.match(/^\/api\/instruction-presets\/(\d+)$/);
   const characterCardMatch = url.match(/^\/api\/character-cards\/(\d+)$/);
+  const sceneCardMatch = url.match(/^\/api\/scene-cards\/(\d+)$/);
 
   if (url === "/api/models") {
     await handleModelsRequest(response);
@@ -75,6 +81,31 @@ async function handleRequest(
 
   if (url === "/api/character-tags" && request.method === "GET") {
     handleCharacterTagListRequest(response);
+    return;
+  }
+
+  if (url === "/api/scene-cards" && request.method === "GET") {
+    handleSceneCardListRequest(response, requestUrl.searchParams);
+    return;
+  }
+
+  if (url === "/api/scene-cards" && request.method === "POST") {
+    await handleSceneCardCreateRequest(request, response);
+    return;
+  }
+
+  if (sceneCardMatch && request.method === "GET") {
+    handleSceneCardReadRequest(response, sceneCardMatch[1]);
+    return;
+  }
+
+  if (sceneCardMatch && request.method === "PUT") {
+    await handleSceneCardUpdateRequest(request, response, sceneCardMatch[1]);
+    return;
+  }
+
+  if (sceneCardMatch && request.method === "DELETE") {
+    handleSceneCardDeleteRequest(response, sceneCardMatch[1]);
     return;
   }
 

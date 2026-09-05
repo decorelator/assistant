@@ -86,7 +86,17 @@
                   </div>
 
                   <div class="field scene-field-span">
-                    <label class="label" for="scene-global-instruction">Global instruction</label>
+                    <div class="scene-field-heading">
+                      <label class="label" for="scene-global-instruction">Global instruction</label>
+                      <button
+                        type="button"
+                        class="button-secondary scene-compact-button"
+                        data-scene-load-card="instruction"
+                      >
+                        Library
+                      </button>
+                    </div>
+                    <div class="scene-selected-card-list" data-scene-selected-cards="instruction"></div>
                     <textarea
                       id="scene-global-instruction"
                       class="scene-global-instruction-input"
@@ -99,7 +109,17 @@
                   </div>
 
                   <div class="field scene-field-span">
-                    <label class="label" for="scene-context">Scene context</label>
+                    <div class="scene-field-heading">
+                      <label class="label" for="scene-context">Scene context</label>
+                      <button
+                        type="button"
+                        class="button-secondary scene-compact-button"
+                        data-scene-load-card="context"
+                      >
+                        Library
+                      </button>
+                    </div>
+                    <div class="scene-selected-card-list" data-scene-selected-cards="context"></div>
                     <textarea
                       id="scene-context"
                       class="scene-context-input"
@@ -475,6 +495,74 @@
         <div class="scene-tag-filter-list" data-scene-character-library-tags></div>
         <p class="form-error" data-scene-character-library-error hidden></p>
         <div class="scene-library-list" data-scene-character-library-list></div>
+      </section>
+    </dialog>
+
+    <dialog class="dialog scene-dialog scene-library-dialog scene-card-library-dialog" data-scene-card-library-dialog>
+      <section class="dialog-form scene-dialog-form scene-card-library-panel">
+        <div class="scene-library-header">
+          <div>
+            <h2 class="dialog-title" data-scene-card-library-title>Choose scene card</h2>
+            <p class="scene-section-copy">Cards are added above the manual text for the current scene.</p>
+          </div>
+          <button
+            type="button"
+            class="button-secondary scene-compact-button"
+            data-scene-card-library-close
+          >
+            Close
+          </button>
+        </div>
+
+        <div class="scene-card-library-grid">
+          <div class="scene-card-library-list-panel">
+            <input
+              type="search"
+              data-scene-card-library-search
+              placeholder="Search scene cards..."
+              aria-label="Search scene cards"
+            />
+            <p class="form-error" data-scene-card-library-error hidden></p>
+            <div class="scene-library-list" data-scene-card-library-list></div>
+          </div>
+
+          <form class="scene-card-form" data-scene-card-form>
+            <div class="scene-card-form-header">
+              <h3 class="scene-section-title" data-scene-card-form-title>New card</h3>
+              <button
+                type="button"
+                class="button-secondary scene-compact-button"
+                data-scene-card-new
+              >
+                New
+              </button>
+            </div>
+            <label class="label" for="scene-card-title-input">Title</label>
+            <input
+              id="scene-card-title-input"
+              name="title"
+              type="text"
+              maxlength="120"
+              required
+            />
+            <label class="label" for="scene-card-description-input">Description</label>
+            <textarea
+              id="scene-card-description-input"
+              name="description"
+              class="scene-card-description-input"
+              placeholder="Short library note..."
+            ></textarea>
+            <label class="label" for="scene-card-text-input">Text</label>
+            <textarea
+              id="scene-card-text-input"
+              name="text"
+              class="scene-card-text-input"
+              required
+              placeholder="Reusable instruction or context text..."
+            ></textarea>
+            <button type="submit" data-scene-card-save>Save card</button>
+          </form>
+        </div>
       </section>
     </dialog>
 

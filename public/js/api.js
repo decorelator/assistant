@@ -137,6 +137,47 @@ export async function loadCharacterTags() {
   return Array.isArray(data.tags) ? data.tags : [];
 }
 
+export async function loadSceneCards({ type = "", q = "" } = {}) {
+  const params = new URLSearchParams();
+
+  if (type) {
+    params.set("type", type);
+  }
+
+  if (q.trim()) {
+    params.set("q", q.trim());
+  }
+
+  const data = await requestJson(`/api/scene-cards${params.size ? `?${params}` : ""}`);
+  return Array.isArray(data.cards) ? data.cards : [];
+}
+
+export async function createSceneCard(card) {
+  const data = await requestJson("/api/scene-cards", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(card),
+  });
+
+  return data.card ?? null;
+}
+
+export async function updateSceneCard(id, card) {
+  const data = await requestJson(`/api/scene-cards/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(card),
+  });
+
+  return data.card ?? null;
+}
+
+export async function deleteSceneCard(id) {
+  return requestJson(`/api/scene-cards/${id}`, {
+    method: "DELETE",
+  });
+}
+
 export async function sendMessage(
   model,
   prompt,

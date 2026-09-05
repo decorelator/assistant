@@ -4,8 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "nodemon --watch src --watch public --watch .env --ext ts,html,css,js,env --exec ts-node src/index.ts",
-    "start": "ts-node src/index.ts",
+    "dev": "nodemon --watch src --watch public --watch .env --ext ts,html,css,js,env --exec \"node node_modules/ts-node/dist/bin.js src/index.ts\"",
+    "start": "node node_modules/ts-node/dist/bin.js src/index.ts",
     "test": "node --test"
   },
   "keywords": [],

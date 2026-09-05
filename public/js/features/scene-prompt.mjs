@@ -9,6 +9,24 @@ function formatSection(title, value, fallback = "None.") {
   return `${title}:\n${value?.trim() ? value.trim() : fallback}`;
 }
 
+function formatSceneCardText(cards) {
+  return (Array.isArray(cards) ? cards : [])
+    .map((card) => {
+      const title = typeof card.title === "string" && card.title.trim() ? card.title.trim() : "Untitled card";
+      const text = typeof card.text === "string" ? card.text.trim() : "";
+      return text ? `[${title}]\n${text}` : "";
+    })
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+function joinPromptParts(...parts) {
+  return parts
+    .map((part) => (typeof part === "string" ? part.trim() : ""))
+    .filter(Boolean)
+    .join("\n\n");
+}
+
 function formatCharacterGender(value) {
   const normalizedValue = typeof value === "string" ? value.trim().toLowerCase() : "";
   const genderLabels = {
@@ -77,11 +95,16 @@ export function buildSceneTurnRequest(scene, turn) {
           .map((beat, index) => `${index + 1}. ${beat.text}`)
           .join("\n")
       : "No director beat for this reply.";
+  const globalInstruction = joinPromptParts(
+    formatSceneCardText(scene.instructionCards),
+    scene.globalInstruction,
+  );
+  const sceneContext = joinPromptParts(formatSceneCardText(scene.contextCards), scene.context);
 
   const instruction = [
     formatSection(
       "Global scene instruction",
-      scene.globalInstruction,
+      globalInstruction,
       "No extra global scene instruction.",
     ),
     `You are ${character.name}.`,
@@ -98,7 +121,7 @@ export function buildSceneTurnRequest(scene, turn) {
 
   const prompt = [
     formatSection("Scene title", scene.title, "Untitled scene"),
-    formatSection("Scene context", scene.context, "No extra scene context."),
+    formatSection("Scene context", sceneContext, "No extra scene context."),
     `Exchange ${turn.pairNumber} of ${scene.exchangeCount}. Each exchange always contains two replies.`,
     `Speaker order in every exchange: ${speakerOrder}.`,
     `Current speaker: ${character.name}.`,

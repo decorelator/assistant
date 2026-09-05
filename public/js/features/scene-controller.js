@@ -1,16 +1,22 @@
 import {
   createCharacterCard,
+  createSceneCard,
+  deleteSceneCard,
   loadCharacterCards,
   loadCharacterTags,
   loadModels,
+  loadSceneCards,
   sendMessage,
   stopGeneration,
   updateCharacterCard,
+  updateSceneCard,
 } from "../api.js";
 import {
   applyBeatDelete,
   applyBeatSave,
   applyCharacterSave,
+  applySceneCardAdd,
+  applySceneCardRemove,
   applySceneFieldChange,
   applySceneWorkspace,
   openSceneSetup,
@@ -42,6 +48,9 @@ export function createSceneController({
   let characterLibraryTags = [];
   let characterLibrarySearch = "";
   let activeCharacterLibraryTagIds = [];
+  let sceneCardLibraryCards = [];
+  let sceneCardLibrarySearch = "";
+  let activeSceneCardType = "instruction";
   let scene = normalizeSceneDraft(loadSceneDraft(), { restoreStopped: true });
 
   const runner = createSceneRunner({
@@ -89,6 +98,8 @@ export function createSceneController({
       characterLibraryCards,
       characterLibraryTags,
       activeCharacterLibraryTagIds,
+      sceneCardLibraryCards,
+      activeSceneCardType,
     });
   }
 
@@ -128,6 +139,23 @@ export function createSceneController({
       characterLibraryTags = [];
       ui.setLibraryError(
         error instanceof Error ? error.message : "Could not load character library.",
+      );
+    }
+
+    renderScene();
+  }
+
+  async function refreshSceneCardLibrary() {
+    try {
+      sceneCardLibraryCards = await loadSceneCards({
+        type: activeSceneCardType,
+        q: sceneCardLibrarySearch,
+      });
+      ui.setSceneCardLibraryError("");
+    } catch (error) {
+      sceneCardLibraryCards = [];
+      ui.setSceneCardLibraryError(
+        error instanceof Error ? error.message : "Could not load scene card library.",
       );
     }
 
@@ -249,6 +277,84 @@ export function createSceneController({
     void refreshCharacterLibrary();
   }
 
+  function openSceneCardLibrary(type) {
+    activeSceneCardType = type === "context" ? "context" : "instruction";
+    sceneCardLibrarySearch = "";
+    ui.openSceneCardLibraryDialog(activeSceneCardType);
+    void refreshSceneCardLibrary();
+  }
+
+  function setSceneCardLibrarySearch(value) {
+    sceneCardLibrarySearch = typeof value === "string" ? value : "";
+    void refreshSceneCardLibrary();
+  }
+
+  function useSceneCard(cardIdParam) {
+    const cardId = Number.parseInt(cardIdParam, 10);
+    const card = sceneCardLibraryCards.find((entry) => entry.id === cardId);
+
+    if (!card) {
+      ui.setSceneCardLibraryError("Scene card not found.");
+      return;
+    }
+
+    updateScene((currentScene) => applySceneCardAdd(currentScene, activeSceneCardType, card));
+  }
+
+  function removeSceneCard(type, sourceId) {
+    updateScene((currentScene) => applySceneCardRemove(currentScene, type, sourceId));
+  }
+
+  function editSceneCard(cardIdParam) {
+    const cardId = Number.parseInt(cardIdParam, 10);
+    const card = sceneCardLibraryCards.find((entry) => entry.id === cardId);
+
+    if (!card) {
+      ui.setSceneCardLibraryError("Scene card not found.");
+      return;
+    }
+
+    ui.editSceneCard(card);
+  }
+
+  async function saveSceneCard(cardId, cardDraft) {
+    try {
+      const savedCard = cardId
+        ? await updateSceneCard(cardId, cardDraft)
+        : await createSceneCard(cardDraft);
+
+      if (!savedCard) {
+        ui.setSceneCardLibraryError("Could not save scene card.");
+        return;
+      }
+
+      ui.editSceneCard(savedCard);
+      await refreshSceneCardLibrary();
+    } catch (error) {
+      ui.setSceneCardLibraryError(
+        error instanceof Error ? error.message : "Could not save scene card.",
+      );
+    }
+  }
+
+  async function deleteSceneCardFromLibrary(cardIdParam) {
+    const cardId = Number.parseInt(cardIdParam, 10);
+
+    if (!Number.isInteger(cardId) || cardId <= 0) {
+      return;
+    }
+
+    try {
+      await deleteSceneCard(cardId);
+      updateScene((currentScene) => applySceneCardRemove(currentScene, activeSceneCardType, cardId));
+      await refreshSceneCardLibrary();
+    } catch (error) {
+      ui.setSceneCardLibraryError(
+        error instanceof Error ? error.message : "Could not delete scene card.",
+      );
+    }
+  }
+
   function openAddBeatDialog() {
     ui.openBeatDialog(null, scene.exchangeCount);
   }
@@ -346,6 +452,17 @@ export function createSceneController({
       onLibrarySearch: setLibrarySearch,
       onLibraryTagToggle: toggleLibraryTag,
       onUseCharacterCard: useCharacterCard,
+      onLoadSceneCard: openSceneCardLibrary,
+      onSceneCardLibrarySearch: setSceneCardLibrarySearch,
+      onSceneCardUse: useSceneCard,
+      onSceneCardRemove: removeSceneCard,
+      onSceneCardEdit: editSceneCard,
+      onSceneCardDelete(cardId) {
+        void deleteSceneCardFromLibrary(cardId);
+      },
+      onSaveSceneCard(cardId, cardDraft) {
+        void saveSceneCard(cardId, cardDraft);
+      },
       onSaveCharacter(action, characterId, characterDraft) {
         if (action === "open") {
           openCharacterDialog(characterId);
@@ -363,6 +480,7 @@ export function createSceneController({
     renderScene();
     void ensureModelsLoaded();
     void refreshCharacterLibrary();
+    void refreshSceneCardLibrary();
   }
 
   return {

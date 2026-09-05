@@ -105,6 +105,43 @@ test("global scene instruction is included first in the system prompt", () => {
   assert.equal(turnRequest.model, "uncensored-model");
 });
 
+test("scene card snapshots are combined with manual instruction and context", () => {
+  const scene = createScene({
+    exchangeCount: 1,
+    instructionCards: [
+      {
+        sourceId: 1,
+        title: "Tagged format",
+        text: "Use clean tagged blocks.",
+      },
+    ],
+    contextCards: [
+      {
+        sourceId: 2,
+        title: "Rainy platform",
+        text: "The scene happens on an empty train platform in the rain.",
+      },
+    ],
+    globalInstruction: "Keep the scene intimate.",
+    context: "Alice is waiting for Bob's answer.",
+  });
+
+  const turnRequest = buildSceneTurnRequest(scene, {
+    pairNumber: 1,
+    replyIndexInPair: 0,
+    speaker: "A",
+  });
+
+  assert.match(
+    turnRequest.instruction,
+    /^Global scene instruction:\n\[Tagged format\]\nUse clean tagged blocks\.\n\nKeep the scene intimate\./,
+  );
+  assert.match(
+    turnRequest.prompt,
+    /Scene context:\n\[Rainy platform\]\nThe scene happens on an empty train platform in the rain\.\n\nAlice is waiting for Bob's answer\./,
+  );
+});
+
 test("scene transcript sent back to the model excludes private thoughts for both characters", () => {
   const scene = createScene({
     exchangeCount: 2,

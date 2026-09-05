@@ -135,6 +135,47 @@ export function applyCharacterSave(scene, characterId, characterDraft) {
   };
 }
 
+function getSceneCardField(type) {
+  return type === "context" ? "contextCards" : "instructionCards";
+}
+
+export function applySceneCardAdd(scene, type, card) {
+  const fieldName = getSceneCardField(type);
+  const sourceId = typeof card.id === "number" ? card.id : Number(card.sourceId);
+
+  if (!Number.isInteger(sourceId) || sourceId <= 0 || !card.text?.trim()) {
+    return scene;
+  }
+
+  const snapshot = {
+    sourceId,
+    title: card.title?.trim() || "Untitled card",
+    text: card.text,
+  };
+  const existingCards = Array.isArray(scene[fieldName]) ? scene[fieldName] : [];
+
+  return {
+    ...scene,
+    [fieldName]: [...existingCards.filter((entry) => entry.sourceId !== sourceId), snapshot],
+  };
+}
+
+export function applySceneCardRemove(scene, type, sourceIdParam) {
+  const fieldName = getSceneCardField(type);
+  const sourceId = Number.parseInt(sourceIdParam, 10);
+
+  if (!Number.isInteger(sourceId) || sourceId <= 0) {
+    return scene;
+  }
+
+  return {
+    ...scene,
+    [fieldName]: (Array.isArray(scene[fieldName]) ? scene[fieldName] : []).filter(
+      (entry) => entry.sourceId !== sourceId,
+    ),
+  };
+}
+
 export function applyBeatSave(scene, beatId, beatInput) {
   const beatResult = buildBeatFromInput(
     beatInput,
